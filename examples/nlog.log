@@ -1,0 +1,480 @@
+2026-06-03 09:00:00.0000|TRACE|Auth.Api.LoginController|Entering request pipeline | seeded startup event | request_id=REQ-0001
+2026-06-03 09:00:00.0750|DEBUG|Auth.Domain.TokenService|Retry policy state updated | seeded startup event | request_id=REQ-0002
+2026-06-03 09:00:00.1500|INFO|Billing.Api.InvoiceController|User session established | seeded startup event | request_id=REQ-0003
+2026-06-03 09:00:00.2250|WARN|Billing.Domain.PaymentProcessor|Slow query detected | seeded startup event | request_id=REQ-0004
+2026-06-03 09:00:00.3000|ERROR|Catalog.Api.ProductController|Database command failed | seeded startup event | request_id=REQ-0005
+2026-06-03 09:00:00.3750|FATAL|Catalog.Domain.IndexRefreshJob|Critical dependency initialization failed | seeded startup event | request_id=REQ-0006
+2026-06-03 09:00:00.4500|TRACE|Checkout.Api.CartController|Preparing SQL command parameters | seeded startup event | request_id=REQ-0007
+2026-06-03 09:00:00.5250|DEBUG|Checkout.Domain.OrderCoordinator|Background worker lease renewed | seeded startup event | request_id=REQ-0008
+2026-06-03 09:00:00.6000|INFO|Infrastructure.Caching.RedisCache|HTTP request completed successfully | seeded startup event | request_id=REQ-0009
+2026-06-03 09:00:00.6750|WARN|Infrastructure.Messaging.RabbitConsumer|Queue lag exceeded threshold | seeded startup event | request_id=REQ-0010
+2026-06-03 09:00:00.7500|ERROR|Infrastructure.Storage.BlobUploader|Outbound API returned error status | seeded startup event | request_id=REQ-0011
+2026-06-03 09:00:00.8250|FATAL|Notifications.Api.EmailController|Fatal exception terminated worker process | seeded startup event | request_id=REQ-0012
+2026-06-03 09:00:00.9000|TRACE|Notifications.Domain.PushDispatcher|Entering request pipeline | seeded startup event | request_id=REQ-0013
+2026-06-03 09:00:00.9750|DEBUG|Observability.Logging.LogArchiver|Retry policy state updated | seeded startup event | request_id=REQ-0014
+2026-06-03 09:00:01.0500|INFO|Observability.Metrics.PrometheusExporter|User session established | seeded startup event | request_id=REQ-0015
+2026-06-03 09:00:01.1250|WARN|Platform.Config.FeatureFlagProvider|Slow query detected | seeded startup event | request_id=REQ-0016
+2026-06-03 09:00:01.2000|ERROR|Platform.Hosting.Startup|Database command failed | seeded startup event | request_id=REQ-0017
+2026-06-03 09:00:01.2750|FATAL|Reporting.Domain.DailySummaryJob|Critical dependency initialization failed | seeded startup event | request_id=REQ-0018
+2026-06-03 09:00:01.3500|TRACE|Search.Api.QueryController|Preparing SQL command parameters | seeded startup event | request_id=REQ-0019
+2026-06-03 09:00:01.4250|DEBUG|Search.Domain.IndexWriter|Background worker lease renewed | seeded startup event | request_id=REQ-0020
+2026-06-03 09:00:01.5000|DEBUG|Notifications.Domain.PushDispatcher|Retry policy state updated | tenant=tenant-beta elapsed_ms=2130 correlation=CORR-16371
+2026-06-03 09:00:01.7030|DEBUG|Catalog.Api.ProductController|Resolved tenant configuration | elapsed_ms=1576 correlation=CORR-00159 tenant=tenant-delta
+2026-06-03 09:00:01.8570|DEBUG|Billing.Domain.PaymentProcessor|Cache lookup completed | request_id=REQ-6358 node=node-1 elapsed_ms=93
+2026-06-03 09:00:01.9830|INFO|Search.Domain.IndexWriter|HTTP request completed successfully | elapsed_ms=1584 tenant=tenant-delta node=node-4
+2026-06-03 09:00:02.0560|INFO|Checkout.Domain.OrderCoordinator|User session established | node=node-4 request_id=REQ-0221 correlation=CORR-07374
+2026-06-03 09:00:02.1260|INFO|Notifications.Api.EmailController|HTTP request completed successfully | request_id=REQ-5232 elapsed_ms=1113 correlation=CORR-13932
+2026-06-03 09:00:02.3050|INFO|Catalog.Api.ProductController|User session established | correlation=CORR-01625 tenant=tenant-beta request_id=REQ-0569
+2026-06-03 09:00:02.4040|ERROR|Notifications.Domain.PushDispatcher|File import validation failed | tenant=tenant-gamma elapsed_ms=149 node=node-1 exception=System.InvalidOperationException
+2026-06-03 09:00:02.5260|TRACE|Reporting.Domain.DailySummaryJob|Preparing SQL command parameters | correlation=CORR-09650 tenant=tenant-alpha elapsed_ms=1008
+2026-06-03 09:00:02.6630|WARN|Search.Api.QueryController|Configuration override missing optional value | tenant=tenant-gamma elapsed_ms=1930 node=node-4
+2026-06-03 09:00:02.7090|TRACE|Billing.Domain.PaymentProcessor|Publishing heartbeat metrics | correlation=CORR-60099 elapsed_ms=1922 node=node-3
+2026-06-03 09:00:02.7600|INFO|Billing.Api.InvoiceController|File import processed | request_id=REQ-8842 tenant=tenant-beta correlation=CORR-41852
+2026-06-03 09:00:02.9310|INFO|Infrastructure.Caching.RedisCache|User session established | tenant=tenant-gamma request_id=REQ-1094 node=node-4
+2026-06-03 09:00:03.1250|ERROR|Observability.Logging.LogArchiver|Outbound API returned error status | request_id=REQ-6064 elapsed_ms=1899 tenant=tenant-gamma exception=System.TimeoutException
+2026-06-03 09:00:03.2150|INFO|Platform.Hosting.Startup|User session established | elapsed_ms=1961 node=node-6 correlation=CORR-66026
+2026-06-03 09:00:03.3280|WARN|Catalog.Domain.IndexRefreshJob|Retrying transient downstream failure | tenant=tenant-gamma correlation=CORR-15161 elapsed_ms=1102
+2026-06-03 09:00:03.4470|INFO|Platform.Hosting.Startup|Scheduled job finished | correlation=CORR-40613 node=node-5 tenant=tenant-beta
+2026-06-03 09:00:03.5140|DEBUG|Auth.Api.LoginController|Background worker lease renewed | tenant=tenant-alpha correlation=CORR-62507 elapsed_ms=1837
+2026-06-03 09:00:03.5310|INFO|Auth.Domain.TokenService|File import processed | correlation=CORR-26083 elapsed_ms=325 tenant=tenant-gamma
+2026-06-03 09:00:03.6430|WARN|Platform.Config.FeatureFlagProvider|Retrying transient downstream failure | correlation=CORR-98953 elapsed_ms=1154 request_id=REQ-9676
+2026-06-03 09:00:03.7170|ERROR|Catalog.Api.ProductController|Outbound API returned error status | request_id=REQ-1656 tenant=tenant-delta correlation=CORR-47825 exception=System.InvalidOperationException
+2026-06-03 09:00:03.8760|INFO|Reporting.Domain.DailySummaryJob|File import processed | elapsed_ms=1207 node=node-3 tenant=tenant-gamma
+2026-06-03 09:00:03.9430|TRACE|Billing.Domain.PaymentProcessor|Entering request pipeline | request_id=REQ-0864 node=node-6 elapsed_ms=465
+2026-06-03 09:00:04.0570|WARN|Platform.Hosting.Startup|Queue lag exceeded threshold | node=node-5 correlation=CORR-06422 tenant=tenant-beta
+2026-06-03 09:00:04.2330|DEBUG|Infrastructure.Storage.BlobUploader|Background worker lease renewed | request_id=REQ-6539 elapsed_ms=1623 tenant=tenant-delta
+2026-06-03 09:00:04.2690|WARN|Infrastructure.Storage.BlobUploader|Queue lag exceeded threshold | request_id=REQ-3774 elapsed_ms=1235 node=node-5
+2026-06-03 09:00:04.4330|INFO|Checkout.Domain.OrderCoordinator|HTTP request completed successfully | request_id=REQ-7716 elapsed_ms=843 node=node-2
+2026-06-03 09:00:04.5430|DEBUG|Observability.Logging.LogArchiver|Cache lookup completed | elapsed_ms=1692 node=node-6 request_id=REQ-7169
+2026-06-03 09:00:04.6060|DEBUG|Checkout.Api.CartController|Resolved tenant configuration | node=node-1 elapsed_ms=2186 correlation=CORR-38850
+2026-06-03 09:00:04.6640|INFO|Observability.Metrics.PrometheusExporter|Scheduled job finished | tenant=tenant-beta request_id=REQ-0010 elapsed_ms=629
+2026-06-03 09:00:04.7290|TRACE|Checkout.Api.CartController|Entering request pipeline | correlation=CORR-15932 request_id=REQ-9912 node=node-2
+2026-06-03 09:00:04.7900|WARN|Observability.Logging.LogArchiver|Configuration override missing optional value | correlation=CORR-57952 node=node-2 tenant=tenant-delta
+2026-06-03 09:00:04.9840|TRACE|Search.Domain.IndexWriter|Entering request pipeline | correlation=CORR-63637 tenant=tenant-beta request_id=REQ-7570
+2026-06-03 09:00:05.0460|ERROR|Notifications.Api.EmailController|File import validation failed | elapsed_ms=1393 correlation=CORR-19585 tenant=tenant-delta exception=System.InvalidOperationException
+2026-06-03 09:00:05.2460|INFO|Billing.Api.InvoiceController|Scheduled job finished | tenant=tenant-gamma elapsed_ms=187 request_id=REQ-9449
+2026-06-03 09:00:05.3480|DEBUG|Auth.Domain.TokenService|Retry policy state updated | tenant=tenant-gamma elapsed_ms=1503 request_id=REQ-2059
+2026-06-03 09:00:05.4510|WARN|Infrastructure.Messaging.RabbitConsumer|Slow query detected | tenant=tenant-delta correlation=CORR-85134 elapsed_ms=1802
+2026-06-03 09:00:05.6450|ERROR|Auth.Domain.TokenService|File import validation failed | tenant=tenant-alpha request_id=REQ-1572 elapsed_ms=470 exception=System.InvalidOperationException
+2026-06-03 09:00:05.7480|TRACE|Checkout.Api.CartController|Evaluating feature flag state | request_id=REQ-0047 node=node-5 tenant=tenant-delta
+2026-06-03 09:00:05.9370|INFO|Catalog.Domain.IndexRefreshJob|HTTP request completed successfully | node=node-4 elapsed_ms=2127 correlation=CORR-82889
+2026-06-03 09:00:06.0070|DEBUG|Checkout.Api.CartController|Background worker lease renewed | node=node-5 correlation=CORR-48898 elapsed_ms=1584
+2026-06-03 09:00:06.1720|INFO|Catalog.Domain.IndexRefreshJob|Scheduled job finished | elapsed_ms=144 node=node-1 request_id=REQ-7421
+2026-06-03 09:00:06.2710|TRACE|Catalog.Domain.IndexRefreshJob|Publishing heartbeat metrics | tenant=tenant-alpha node=node-5 request_id=REQ-8388
+2026-06-03 09:00:06.4100|WARN|Billing.Domain.PaymentProcessor|Slow query detected | request_id=REQ-6144 elapsed_ms=1914 node=node-4
+2026-06-03 09:00:06.6180|TRACE|Checkout.Domain.OrderCoordinator|Entering request pipeline | correlation=CORR-34250 request_id=REQ-6632 node=node-4
+2026-06-03 09:00:06.6570|WARN|Infrastructure.Messaging.RabbitConsumer|Configuration override missing optional value | correlation=CORR-40632 request_id=REQ-6988 elapsed_ms=80
+2026-06-03 09:00:06.6720|INFO|Auth.Domain.TokenService|File import processed | correlation=CORR-68246 node=node-1 request_id=REQ-3890
+2026-06-03 09:00:06.7990|DEBUG|Catalog.Domain.IndexRefreshJob|Background worker lease renewed | correlation=CORR-38390 node=node-2 tenant=tenant-gamma
+2026-06-03 09:00:07.0170|WARN|Infrastructure.Storage.BlobUploader|Slow query detected | request_id=REQ-8796 node=node-3 elapsed_ms=1700
+2026-06-03 09:00:07.0490|INFO|Auth.Domain.TokenService|Scheduled job finished | request_id=REQ-2501 node=node-2 correlation=CORR-72996
+2026-06-03 09:00:07.1650|INFO|Auth.Api.LoginController|HTTP request completed successfully | elapsed_ms=255 request_id=REQ-6650 correlation=CORR-92565
+2026-06-03 09:00:07.2040|TRACE|Billing.Domain.PaymentProcessor|Entering request pipeline | elapsed_ms=423 node=node-3 request_id=REQ-1611
+2026-06-03 09:00:07.4090|DEBUG|Reporting.Domain.DailySummaryJob|Background worker lease renewed | correlation=CORR-47685 elapsed_ms=1397 node=node-3
+2026-06-03 09:00:07.4390|INFO|Platform.Hosting.Startup|Scheduled job finished | correlation=CORR-10519 request_id=REQ-6658 tenant=tenant-delta
+2026-06-03 09:00:07.5780|INFO|Catalog.Api.ProductController|HTTP request completed successfully | node=node-5 request_id=REQ-2807 tenant=tenant-beta
+2026-06-03 09:00:07.6120|ERROR|Platform.Config.FeatureFlagProvider|File import validation failed | elapsed_ms=744 correlation=CORR-26628 tenant=tenant-gamma exception=System.TimeoutException
+2026-06-03 09:00:07.6790|TRACE|Checkout.Domain.OrderCoordinator|Entering request pipeline | correlation=CORR-52994 request_id=REQ-6296 elapsed_ms=398
+2026-06-03 09:00:07.7070|TRACE|Billing.Domain.PaymentProcessor|Entering request pipeline | node=node-2 request_id=REQ-5885 correlation=CORR-79969
+2026-06-03 09:00:07.8950|INFO|Auth.Api.LoginController|HTTP request completed successfully | node=node-1 tenant=tenant-delta correlation=CORR-08090
+2026-06-03 09:00:07.9420|TRACE|Catalog.Domain.IndexRefreshJob|Entering request pipeline | node=node-2 request_id=REQ-6377 correlation=CORR-97520
+2026-06-03 09:00:08.0200|WARN|Reporting.Domain.DailySummaryJob|Retrying transient downstream failure | elapsed_ms=1863 tenant=tenant-delta request_id=REQ-1582
+2026-06-03 09:00:08.0740|DEBUG|Search.Domain.IndexWriter|Retry policy state updated | correlation=CORR-58454 request_id=REQ-4171 elapsed_ms=952
+2026-06-03 09:00:08.1890|DEBUG|Reporting.Domain.DailySummaryJob|Cache lookup completed | correlation=CORR-70844 node=node-4 elapsed_ms=274
+2026-06-03 09:00:08.3680|TRACE|Notifications.Domain.PushDispatcher|Publishing heartbeat metrics | elapsed_ms=2132 correlation=CORR-76449 node=node-5
+2026-06-03 09:00:08.4160|TRACE|Observability.Metrics.PrometheusExporter|Publishing heartbeat metrics | tenant=tenant-beta node=node-4 elapsed_ms=1225
+2026-06-03 09:00:08.6250|DEBUG|Checkout.Api.CartController|Cache lookup completed | tenant=tenant-gamma node=node-4 elapsed_ms=563
+2026-06-03 09:00:08.6440|INFO|Search.Domain.IndexWriter|Scheduled job finished | correlation=CORR-00007 elapsed_ms=594 tenant=tenant-beta
+2026-06-03 09:00:08.7430|INFO|Notifications.Domain.PushDispatcher|HTTP request completed successfully | correlation=CORR-92410 tenant=tenant-gamma node=node-2
+2026-06-03 09:00:08.9180|DEBUG|Checkout.Domain.OrderCoordinator|Retry policy state updated | request_id=REQ-4573 elapsed_ms=1268 node=node-3
+2026-06-03 09:00:09.1040|INFO|Checkout.Domain.OrderCoordinator|Scheduled job finished | tenant=tenant-gamma elapsed_ms=1547 correlation=CORR-13284
+2026-06-03 09:00:09.1390|INFO|Billing.Domain.PaymentProcessor|File import processed | request_id=REQ-8008 node=node-4 tenant=tenant-delta
+2026-06-03 09:00:09.3090|INFO|Auth.Domain.TokenService|User session established | request_id=REQ-2263 tenant=tenant-gamma correlation=CORR-98502
+2026-06-03 09:00:09.4830|DEBUG|Checkout.Api.CartController|Resolved tenant configuration | request_id=REQ-0443 node=node-6 elapsed_ms=2018
+2026-06-03 09:00:09.6140|DEBUG|Platform.Config.FeatureFlagProvider|Cache lookup completed | request_id=REQ-0777 correlation=CORR-53080 node=node-2
+2026-06-03 09:00:09.6410|INFO|Reporting.Domain.DailySummaryJob|File import processed | correlation=CORR-75098 tenant=tenant-delta node=node-6
+2026-06-03 09:00:09.8310|TRACE|Billing.Domain.PaymentProcessor|Entering request pipeline | node=node-4 request_id=REQ-5830 elapsed_ms=1747
+2026-06-03 09:00:09.9680|ERROR|Reporting.Domain.DailySummaryJob|Database command failed | correlation=CORR-99809 request_id=REQ-7324 elapsed_ms=1487 exception=SqlException
+2026-06-03 09:00:10.0370|TRACE|Search.Domain.IndexWriter|Publishing heartbeat metrics | correlation=CORR-51030 node=node-3 elapsed_ms=885
+2026-06-03 09:00:10.1190|WARN|Observability.Metrics.PrometheusExporter|Queue lag exceeded threshold | request_id=REQ-7571 tenant=tenant-beta node=node-3
+2026-06-03 09:00:10.1680|INFO|Notifications.Api.EmailController|User session established | node=node-3 tenant=tenant-beta request_id=REQ-7716
+2026-06-03 09:00:10.3830|INFO|Checkout.Domain.OrderCoordinator|User session established | node=node-6 tenant=tenant-delta correlation=CORR-50770
+2026-06-03 09:00:10.5110|TRACE|Observability.Logging.LogArchiver|Publishing heartbeat metrics | elapsed_ms=1752 correlation=CORR-01045 request_id=REQ-8058
+2026-06-03 09:00:10.5520|INFO|Reporting.Domain.DailySummaryJob|File import processed | node=node-2 tenant=tenant-gamma correlation=CORR-71961
+2026-06-03 09:00:10.6700|INFO|Notifications.Api.EmailController|Scheduled job finished | correlation=CORR-03797 request_id=REQ-2595 tenant=tenant-delta
+2026-06-03 09:00:10.7520|TRACE|Infrastructure.Caching.RedisCache|Preparing SQL command parameters | tenant=tenant-delta request_id=REQ-9805 node=node-3
+2026-06-03 09:00:10.9600|TRACE|Checkout.Api.CartController|Preparing SQL command parameters | tenant=tenant-alpha elapsed_ms=1825 request_id=REQ-4382
+2026-06-03 09:00:11.0940|DEBUG|Notifications.Api.EmailController|Retry policy state updated | tenant=tenant-gamma elapsed_ms=980 node=node-3
+2026-06-03 09:00:11.1180|DEBUG|Platform.Hosting.Startup|Retry policy state updated | correlation=CORR-15843 elapsed_ms=615 node=node-6
+2026-06-03 09:00:11.2130|TRACE|Platform.Config.FeatureFlagProvider|Evaluating feature flag state | correlation=CORR-58035 elapsed_ms=255 tenant=tenant-gamma
+2026-06-03 09:00:11.2600|INFO|Reporting.Domain.DailySummaryJob|User session established | node=node-3 request_id=REQ-1552 elapsed_ms=1834
+2026-06-03 09:00:11.2910|DEBUG|Infrastructure.Storage.BlobUploader|Cache lookup completed | elapsed_ms=1035 correlation=CORR-41122 node=node-2
+2026-06-03 09:00:11.3320|INFO|Search.Api.QueryController|User session established | correlation=CORR-87017 tenant=tenant-beta node=node-3
+2026-06-03 09:00:11.5000|INFO|Billing.Domain.PaymentProcessor|File import processed | elapsed_ms=1710 node=node-1 tenant=tenant-alpha
+2026-06-03 09:00:11.6260|DEBUG|Notifications.Domain.PushDispatcher|Cache lookup completed | request_id=REQ-9534 correlation=CORR-52571 node=node-3
+2026-06-03 09:00:11.6530|INFO|Search.Api.QueryController|User session established | node=node-6 request_id=REQ-7561 elapsed_ms=958
+2026-06-03 09:00:11.7620|INFO|Checkout.Domain.OrderCoordinator|HTTP request completed successfully | tenant=tenant-beta request_id=REQ-7194 correlation=CORR-48863
+2026-06-03 09:00:11.9400|TRACE|Checkout.Api.CartController|Preparing SQL command parameters | request_id=REQ-3225 elapsed_ms=1747 node=node-1
+2026-06-03 09:00:12.0200|ERROR|Infrastructure.Storage.BlobUploader|Outbound API returned error status | node=node-6 correlation=CORR-81082 tenant=tenant-alpha exception=System.InvalidOperationException
+2026-06-03 09:00:12.1770|ERROR|Checkout.Api.CartController|Outbound API returned error status | node=node-6 tenant=tenant-gamma request_id=REQ-0948 exception=System.TimeoutException
+2026-06-03 09:00:12.2260|ERROR|Checkout.Api.CartController|Unhandled exception while processing message | elapsed_ms=2303 correlation=CORR-04613 request_id=REQ-6288 exception=System.InvalidOperationException
+2026-06-03 09:00:12.4010|DEBUG|Catalog.Domain.IndexRefreshJob|Cache lookup completed | elapsed_ms=2027 request_id=REQ-6221 tenant=tenant-gamma
+2026-06-03 09:00:12.5430|TRACE|Platform.Config.FeatureFlagProvider|Preparing SQL command parameters | node=node-6 correlation=CORR-11703 elapsed_ms=1187
+2026-06-03 09:00:12.7470|WARN|Auth.Api.LoginController|Retrying transient downstream failure | node=node-5 request_id=REQ-4093 tenant=tenant-alpha
+2026-06-03 09:00:12.9620|TRACE|Observability.Metrics.PrometheusExporter|Preparing SQL command parameters | node=node-4 correlation=CORR-35150 tenant=tenant-beta
+2026-06-03 09:00:13.0050|TRACE|Notifications.Api.EmailController|Preparing SQL command parameters | request_id=REQ-3959 node=node-2 elapsed_ms=1297
+2026-06-03 09:00:13.0960|WARN|Platform.Hosting.Startup|Configuration override missing optional value | elapsed_ms=1563 node=node-3 request_id=REQ-1100
+2026-06-03 09:00:13.1420|INFO|Notifications.Api.EmailController|File import processed | elapsed_ms=2302 correlation=CORR-32975 tenant=tenant-gamma
+2026-06-03 09:00:13.2250|TRACE|Observability.Logging.LogArchiver|Entering request pipeline | elapsed_ms=850 request_id=REQ-5091 tenant=tenant-alpha
+2026-06-03 09:00:13.4310|INFO|Notifications.Api.EmailController|User session established | correlation=CORR-13957 node=node-2 tenant=tenant-delta
+2026-06-03 09:00:13.5370|WARN|Catalog.Api.ProductController|Queue lag exceeded threshold | correlation=CORR-23555 elapsed_ms=1708 tenant=tenant-gamma
+2026-06-03 09:00:13.7060|DEBUG|Observability.Metrics.PrometheusExporter|Cache lookup completed | node=node-1 correlation=CORR-84898 elapsed_ms=71
+2026-06-03 09:00:13.7580|ERROR|Search.Api.QueryController|Unhandled exception while processing message | node=node-3 tenant=tenant-beta correlation=CORR-09758 exception=System.InvalidOperationException
+2026-06-03 09:00:13.9680|ERROR|Catalog.Domain.IndexRefreshJob|File import validation failed | request_id=REQ-7659 tenant=tenant-gamma elapsed_ms=693 exception=IOException
+2026-06-03 09:00:14.0260|DEBUG|Checkout.Api.CartController|Resolved tenant configuration | node=node-3 request_id=REQ-9394 tenant=tenant-alpha
+2026-06-03 09:00:14.1210|TRACE|Infrastructure.Caching.RedisCache|Preparing SQL command parameters | correlation=CORR-53813 tenant=tenant-alpha request_id=REQ-5920
+2026-06-03 09:00:14.1480|TRACE|Observability.Logging.LogArchiver|Entering request pipeline | elapsed_ms=156 correlation=CORR-71234 tenant=tenant-beta
+2026-06-03 09:00:14.2490|TRACE|Checkout.Api.CartController|Preparing SQL command parameters | node=node-5 elapsed_ms=1217 correlation=CORR-27263
+2026-06-03 09:00:14.3910|INFO|Catalog.Domain.IndexRefreshJob|HTTP request completed successfully | request_id=REQ-8572 correlation=CORR-09431 tenant=tenant-gamma
+2026-06-03 09:00:14.6080|ERROR|Checkout.Domain.OrderCoordinator|Unhandled exception while processing message | tenant=tenant-gamma elapsed_ms=447 correlation=CORR-07832 exception=IOException
+2026-06-03 09:00:14.6260|TRACE|Infrastructure.Storage.BlobUploader|Publishing heartbeat metrics | elapsed_ms=1270 tenant=tenant-beta correlation=CORR-41856
+2026-06-03 09:00:14.7330|WARN|Catalog.Api.ProductController|Queue lag exceeded threshold | tenant=tenant-gamma node=node-4 request_id=REQ-5012
+2026-06-03 09:00:14.8490|INFO|Platform.Hosting.Startup|Scheduled job finished | tenant=tenant-gamma correlation=CORR-23156 request_id=REQ-5481
+2026-06-03 09:00:15.0250|ERROR|Catalog.Api.ProductController|File import validation failed | node=node-5 request_id=REQ-7232 tenant=tenant-gamma exception=System.TimeoutException
+2026-06-03 09:00:15.1340|INFO|Platform.Config.FeatureFlagProvider|User session established | request_id=REQ-0906 node=node-1 tenant=tenant-alpha
+2026-06-03 09:00:15.2750|DEBUG|Search.Api.QueryController|Background worker lease renewed | tenant=tenant-gamma request_id=REQ-8330 node=node-6
+2026-06-03 09:00:15.4870|INFO|Reporting.Domain.DailySummaryJob|File import processed | tenant=tenant-alpha request_id=REQ-1054 node=node-1
+2026-06-03 09:00:15.7020|INFO|Observability.Logging.LogArchiver|Scheduled job finished | node=node-6 elapsed_ms=2265 tenant=tenant-beta
+2026-06-03 09:00:15.8070|INFO|Observability.Metrics.PrometheusExporter|User session established | correlation=CORR-91657 request_id=REQ-3500 tenant=tenant-delta
+2026-06-03 09:00:15.9300|ERROR|Infrastructure.Caching.RedisCache|File import validation failed | request_id=REQ-9871 correlation=CORR-00696 node=node-5 exception=System.InvalidOperationException
+2026-06-03 09:00:16.0800|INFO|Infrastructure.Storage.BlobUploader|User session established | correlation=CORR-58947 node=node-4 elapsed_ms=433
+2026-06-03 09:00:16.1340|TRACE|Checkout.Api.CartController|Evaluating feature flag state | node=node-3 tenant=tenant-delta elapsed_ms=1936
+2026-06-03 09:00:16.3220|ERROR|Auth.Domain.TokenService|Database command failed | tenant=tenant-alpha correlation=CORR-19937 node=node-2 exception=System.TimeoutException
+2026-06-03 09:00:16.4560|INFO|Observability.Logging.LogArchiver|File import processed | tenant=tenant-alpha elapsed_ms=2080 correlation=CORR-70560
+2026-06-03 09:00:16.5610|WARN|Infrastructure.Storage.BlobUploader|Configuration override missing optional value | node=node-1 request_id=REQ-8749 correlation=CORR-36552
+2026-06-03 09:00:16.7040|INFO|Infrastructure.Messaging.RabbitConsumer|File import processed | node=node-4 tenant=tenant-beta elapsed_ms=95
+2026-06-03 09:00:16.7470|TRACE|Search.Api.QueryController|Entering request pipeline | correlation=CORR-19838 request_id=REQ-5255 elapsed_ms=1644
+2026-06-03 09:00:16.7750|WARN|Auth.Api.LoginController|Retrying transient downstream failure | elapsed_ms=2264 request_id=REQ-3096 node=node-2
+2026-06-03 09:00:16.8120|DEBUG|Observability.Logging.LogArchiver|Resolved tenant configuration | elapsed_ms=1881 request_id=REQ-5765 node=node-1
+2026-06-03 09:00:16.8410|DEBUG|Reporting.Domain.DailySummaryJob|Cache lookup completed | node=node-5 tenant=tenant-alpha request_id=REQ-4382
+2026-06-03 09:00:17.0520|DEBUG|Notifications.Domain.PushDispatcher|Resolved tenant configuration | request_id=REQ-9299 elapsed_ms=1049 tenant=tenant-alpha
+2026-06-03 09:00:17.0830|TRACE|Reporting.Domain.DailySummaryJob|Entering request pipeline | elapsed_ms=1534 correlation=CORR-49109 tenant=tenant-beta
+2026-06-03 09:00:17.2820|DEBUG|Infrastructure.Messaging.RabbitConsumer|Retry policy state updated | request_id=REQ-5031 node=node-3 correlation=CORR-80299
+2026-06-03 09:00:17.4760|INFO|Catalog.Api.ProductController|Scheduled job finished | node=node-2 tenant=tenant-alpha request_id=REQ-2478
+2026-06-03 09:00:17.5610|DEBUG|Infrastructure.Caching.RedisCache|Resolved tenant configuration | elapsed_ms=1181 tenant=tenant-beta node=node-1
+2026-06-03 09:00:17.6700|INFO|Notifications.Domain.PushDispatcher|Scheduled job finished | node=node-6 request_id=REQ-6520 correlation=CORR-20231
+2026-06-03 09:00:17.7470|INFO|Infrastructure.Storage.BlobUploader|User session established | correlation=CORR-81814 tenant=tenant-delta request_id=REQ-7264
+2026-06-03 09:00:17.8430|DEBUG|Search.Api.QueryController|Resolved tenant configuration | node=node-2 elapsed_ms=446 tenant=tenant-gamma
+2026-06-03 09:00:18.0560|TRACE|Billing.Domain.PaymentProcessor|Entering request pipeline | tenant=tenant-gamma correlation=CORR-59882 node=node-1
+2026-06-03 09:00:18.1540|TRACE|Notifications.Api.EmailController|Entering request pipeline | node=node-2 correlation=CORR-55174 request_id=REQ-2144
+2026-06-03 09:00:18.1950|WARN|Billing.Api.InvoiceController|Slow query detected | correlation=CORR-84820 elapsed_ms=1118 node=node-3
+2026-06-03 09:00:18.4110|INFO|Search.Api.QueryController|Scheduled job finished | node=node-5 request_id=REQ-6045 elapsed_ms=770
+2026-06-03 09:00:18.4510|TRACE|Reporting.Domain.DailySummaryJob|Entering request pipeline | elapsed_ms=302 node=node-2 tenant=tenant-beta
+2026-06-03 09:00:18.6670|ERROR|Search.Api.QueryController|Unhandled exception while processing message | request_id=REQ-6384 correlation=CORR-32636 elapsed_ms=1379 exception=System.InvalidOperationException
+2026-06-03 09:00:18.6890|WARN|Infrastructure.Messaging.RabbitConsumer|Slow query detected | node=node-2 tenant=tenant-beta correlation=CORR-27323
+2026-06-03 09:00:18.8850|DEBUG|Auth.Api.LoginController|Cache lookup completed | correlation=CORR-47335 request_id=REQ-8217 elapsed_ms=1301
+2026-06-03 09:00:19.0370|INFO|Infrastructure.Caching.RedisCache|File import processed | node=node-2 correlation=CORR-36416 elapsed_ms=617
+2026-06-03 09:00:19.0820|TRACE|Infrastructure.Caching.RedisCache|Preparing SQL command parameters | request_id=REQ-4534 elapsed_ms=410 tenant=tenant-gamma
+2026-06-03 09:00:19.2940|DEBUG|Infrastructure.Storage.BlobUploader|Cache lookup completed | node=node-3 tenant=tenant-alpha request_id=REQ-9891
+2026-06-03 09:00:19.4480|INFO|Auth.Domain.TokenService|Scheduled job finished | node=node-2 tenant=tenant-alpha correlation=CORR-50776
+2026-06-03 09:00:19.6060|ERROR|Infrastructure.Caching.RedisCache|File import validation failed | elapsed_ms=2096 correlation=CORR-13114 tenant=tenant-delta exception=IOException
+2026-06-03 09:00:19.6260|DEBUG|Platform.Hosting.Startup|Retry policy state updated | request_id=REQ-8560 node=node-2 elapsed_ms=1928
+2026-06-03 09:00:19.8330|DEBUG|Observability.Logging.LogArchiver|Retry policy state updated | node=node-1 correlation=CORR-05779 elapsed_ms=930
+2026-06-03 09:00:19.9260|DEBUG|Infrastructure.Storage.BlobUploader|Background worker lease renewed | tenant=tenant-delta correlation=CORR-73748 node=node-3
+2026-06-03 09:00:20.0550|INFO|Checkout.Domain.OrderCoordinator|Scheduled job finished | correlation=CORR-64330 tenant=tenant-delta node=node-1
+2026-06-03 09:00:20.0980|TRACE|Observability.Metrics.PrometheusExporter|Entering request pipeline | correlation=CORR-39816 elapsed_ms=974 tenant=tenant-beta
+2026-06-03 09:00:20.2620|INFO|Checkout.Domain.OrderCoordinator|User session established | node=node-6 correlation=CORR-10291 request_id=REQ-5768
+2026-06-03 09:00:20.4560|ERROR|Observability.Metrics.PrometheusExporter|File import validation failed | tenant=tenant-delta elapsed_ms=1583 node=node-6 exception=System.TimeoutException
+2026-06-03 09:00:20.4780|DEBUG|Catalog.Domain.IndexRefreshJob|Resolved tenant configuration | node=node-1 elapsed_ms=2074 tenant=tenant-gamma
+2026-06-03 09:00:20.5660|TRACE|Billing.Domain.PaymentProcessor|Entering request pipeline | tenant=tenant-beta elapsed_ms=138 correlation=CORR-60915
+2026-06-03 09:00:20.6370|TRACE|Infrastructure.Storage.BlobUploader|Entering request pipeline | elapsed_ms=541 node=node-6 correlation=CORR-36857
+2026-06-03 09:00:20.8310|TRACE|Notifications.Api.EmailController|Publishing heartbeat metrics | correlation=CORR-08952 node=node-2 request_id=REQ-9462
+2026-06-03 09:00:20.8620|INFO|Search.Api.QueryController|File import processed | tenant=tenant-alpha correlation=CORR-78116 request_id=REQ-2319
+2026-06-03 09:00:20.9090|INFO|Notifications.Domain.PushDispatcher|File import processed | elapsed_ms=1439 tenant=tenant-alpha correlation=CORR-64641
+2026-06-03 09:00:20.9440|TRACE|Catalog.Domain.IndexRefreshJob|Preparing SQL command parameters | elapsed_ms=538 correlation=CORR-62432 node=node-4
+2026-06-03 09:00:20.9820|WARN|Platform.Hosting.Startup|Queue lag exceeded threshold | correlation=CORR-99127 node=node-3 elapsed_ms=1005
+2026-06-03 09:00:21.0590|TRACE|Billing.Domain.PaymentProcessor|Preparing SQL command parameters | node=node-3 request_id=REQ-8736 tenant=tenant-gamma
+2026-06-03 09:00:21.1230|INFO|Billing.Domain.PaymentProcessor|File import processed | tenant=tenant-gamma node=node-6 correlation=CORR-81557
+2026-06-03 09:00:21.2020|ERROR|Search.Api.QueryController|Database command failed | elapsed_ms=2012 request_id=REQ-6926 node=node-3 exception=IOException
+2026-06-03 09:00:21.2400|DEBUG|Billing.Api.InvoiceController|Retry policy state updated | tenant=tenant-alpha node=node-6 request_id=REQ-9279
+2026-06-03 09:00:21.4250|INFO|Catalog.Domain.IndexRefreshJob|HTTP request completed successfully | correlation=CORR-38565 node=node-4 elapsed_ms=1083
+2026-06-03 09:00:21.5330|INFO|Catalog.Api.ProductController|User session established | correlation=CORR-26427 node=node-2 elapsed_ms=1720
+2026-06-03 09:00:21.6750|INFO|Infrastructure.Messaging.RabbitConsumer|File import processed | tenant=tenant-gamma correlation=CORR-49328 request_id=REQ-9012
+2026-06-03 09:00:21.8880|TRACE|Search.Api.QueryController|Entering request pipeline | elapsed_ms=2002 request_id=REQ-4053 node=node-4
+2026-06-03 09:00:21.9930|DEBUG|Search.Domain.IndexWriter|Cache lookup completed | correlation=CORR-01910 node=node-3 elapsed_ms=655
+2026-06-03 09:00:22.0640|TRACE|Platform.Config.FeatureFlagProvider|Evaluating feature flag state | elapsed_ms=1196 request_id=REQ-3224 tenant=tenant-gamma
+2026-06-03 09:00:22.2590|INFO|Infrastructure.Messaging.RabbitConsumer|Scheduled job finished | elapsed_ms=1977 request_id=REQ-3779 node=node-6
+2026-06-03 09:00:22.4360|INFO|Observability.Metrics.PrometheusExporter|User session established | request_id=REQ-5371 node=node-1 tenant=tenant-alpha
+2026-06-03 09:00:22.6520|INFO|Billing.Domain.PaymentProcessor|HTTP request completed successfully | correlation=CORR-22296 request_id=REQ-4636 elapsed_ms=2196
+2026-06-03 09:00:22.6740|DEBUG|Observability.Metrics.PrometheusExporter|Retry policy state updated | request_id=REQ-8710 node=node-4 tenant=tenant-beta
+2026-06-03 09:00:22.7060|DEBUG|Observability.Logging.LogArchiver|Retry policy state updated | correlation=CORR-33551 elapsed_ms=864 request_id=REQ-2014
+2026-06-03 09:00:22.8730|ERROR|Auth.Domain.TokenService|File import validation failed | elapsed_ms=1043 request_id=REQ-5451 correlation=CORR-28204 exception=System.InvalidOperationException
+2026-06-03 09:00:22.9370|WARN|Catalog.Api.ProductController|Slow query detected | request_id=REQ-5032 node=node-3 elapsed_ms=2117
+2026-06-03 09:00:23.1280|WARN|Search.Api.QueryController|Retrying transient downstream failure | tenant=tenant-delta node=node-3 correlation=CORR-29550
+2026-06-03 09:00:23.3230|TRACE|Infrastructure.Messaging.RabbitConsumer|Evaluating feature flag state | tenant=tenant-delta request_id=REQ-8620 elapsed_ms=2276
+2026-06-03 09:00:23.4690|INFO|Catalog.Domain.IndexRefreshJob|Scheduled job finished | elapsed_ms=2145 request_id=REQ-4444 correlation=CORR-23895
+2026-06-03 09:00:23.6290|DEBUG|Platform.Config.FeatureFlagProvider|Cache lookup completed | elapsed_ms=714 request_id=REQ-4664 node=node-2
+2026-06-03 09:00:23.6930|DEBUG|Checkout.Domain.OrderCoordinator|Retry policy state updated | tenant=tenant-beta elapsed_ms=1388 correlation=CORR-08380
+2026-06-03 09:00:23.8380|TRACE|Catalog.Api.ProductController|Publishing heartbeat metrics | tenant=tenant-delta node=node-2 elapsed_ms=961
+2026-06-03 09:00:24.0580|WARN|Notifications.Domain.PushDispatcher|Configuration override missing optional value | tenant=tenant-delta node=node-6 elapsed_ms=1583
+2026-06-03 09:00:24.1840|INFO|Billing.Api.InvoiceController|User session established | elapsed_ms=1635 node=node-6 request_id=REQ-1109
+2026-06-03 09:00:24.3070|TRACE|Search.Domain.IndexWriter|Evaluating feature flag state | tenant=tenant-beta request_id=REQ-5631 correlation=CORR-17379
+2026-06-03 09:00:24.4200|INFO|Catalog.Domain.IndexRefreshJob|Scheduled job finished | correlation=CORR-55269 elapsed_ms=2029 request_id=REQ-8395
+2026-06-03 09:00:24.4410|WARN|Auth.Domain.TokenService|Slow query detected | elapsed_ms=599 request_id=REQ-8807 node=node-5
+2026-06-03 09:00:24.4890|DEBUG|Platform.Hosting.Startup|Cache lookup completed | correlation=CORR-10486 request_id=REQ-5455 node=node-6
+2026-06-03 09:00:24.5050|INFO|Notifications.Api.EmailController|HTTP request completed successfully | node=node-6 elapsed_ms=834 tenant=tenant-delta
+2026-06-03 09:00:24.6430|ERROR|Notifications.Domain.PushDispatcher|Unhandled exception while processing message | node=node-4 tenant=tenant-beta request_id=REQ-0178 exception=System.InvalidOperationException
+2026-06-03 09:00:24.6970|INFO|Infrastructure.Caching.RedisCache|Scheduled job finished | node=node-3 request_id=REQ-7245 elapsed_ms=948
+2026-06-03 09:00:24.9160|WARN|Infrastructure.Caching.RedisCache|Slow query detected | node=node-1 correlation=CORR-76342 elapsed_ms=1508
+2026-06-03 09:00:24.9440|INFO|Search.Domain.IndexWriter|HTTP request completed successfully | tenant=tenant-delta request_id=REQ-2333 correlation=CORR-71957
+2026-06-03 09:00:25.1220|INFO|Catalog.Api.ProductController|File import processed | node=node-1 request_id=REQ-6063 correlation=CORR-35381
+2026-06-03 09:00:25.2060|INFO|Billing.Domain.PaymentProcessor|File import processed | request_id=REQ-2373 node=node-5 tenant=tenant-delta
+2026-06-03 09:00:25.2750|DEBUG|Platform.Hosting.Startup|Cache lookup completed | tenant=tenant-gamma correlation=CORR-56318 node=node-5
+2026-06-03 09:00:25.3310|TRACE|Observability.Metrics.PrometheusExporter|Evaluating feature flag state | request_id=REQ-2551 tenant=tenant-beta elapsed_ms=344
+2026-06-03 09:00:25.5300|INFO|Notifications.Domain.PushDispatcher|HTTP request completed successfully | correlation=CORR-22719 request_id=REQ-0850 node=node-3
+2026-06-03 09:00:25.7330|TRACE|Reporting.Domain.DailySummaryJob|Publishing heartbeat metrics | tenant=tenant-alpha request_id=REQ-8354 correlation=CORR-66044
+2026-06-03 09:00:25.7690|TRACE|Billing.Domain.PaymentProcessor|Publishing heartbeat metrics | tenant=tenant-gamma elapsed_ms=2315 node=node-6
+2026-06-03 09:00:25.8230|DEBUG|Search.Api.QueryController|Resolved tenant configuration | correlation=CORR-19608 node=node-1 tenant=tenant-gamma
+2026-06-03 09:00:26.0130|INFO|Search.Api.QueryController|File import processed | request_id=REQ-3699 correlation=CORR-57690 elapsed_ms=1097
+2026-06-03 09:00:26.1150|INFO|Notifications.Api.EmailController|File import processed | tenant=tenant-beta request_id=REQ-2726 correlation=CORR-20065
+2026-06-03 09:00:26.2850|FATAL|Infrastructure.Caching.RedisCache|Application host is shutting down unexpectedly | request_id=REQ-0813 elapsed_ms=677 correlation=CORR-45550 exception=System.InvalidOperationException
+2026-06-03 09:00:26.4390|INFO|Search.Domain.IndexWriter|User session established | request_id=REQ-4578 tenant=tenant-beta elapsed_ms=1582
+2026-06-03 09:00:26.5160|INFO|Billing.Api.InvoiceController|User session established | request_id=REQ-8363 node=node-3 correlation=CORR-76762
+2026-06-03 09:00:26.6360|INFO|Auth.Domain.TokenService|User session established | tenant=tenant-delta request_id=REQ-6861 elapsed_ms=2255
+2026-06-03 09:00:26.8050|INFO|Notifications.Domain.PushDispatcher|Scheduled job finished | node=node-1 tenant=tenant-gamma elapsed_ms=854
+2026-06-03 09:00:26.9410|INFO|Infrastructure.Messaging.RabbitConsumer|File import processed | tenant=tenant-delta elapsed_ms=1930 node=node-1
+2026-06-03 09:00:27.1540|DEBUG|Observability.Logging.LogArchiver|Background worker lease renewed | node=node-3 correlation=CORR-34715 elapsed_ms=12
+2026-06-03 09:00:27.3640|WARN|Observability.Metrics.PrometheusExporter|Slow query detected | elapsed_ms=1638 tenant=tenant-beta request_id=REQ-4037
+2026-06-03 09:00:27.4490|ERROR|Billing.Api.InvoiceController|Outbound API returned error status | node=node-5 tenant=tenant-alpha elapsed_ms=2187 exception=SqlException
+2026-06-03 09:00:27.4760|INFO|Auth.Api.LoginController|User session established | tenant=tenant-alpha request_id=REQ-7880 elapsed_ms=1948
+2026-06-03 09:00:27.6120|DEBUG|Search.Api.QueryController|Resolved tenant configuration | tenant=tenant-delta node=node-6 request_id=REQ-4731
+2026-06-03 09:00:27.6420|WARN|Search.Domain.IndexWriter|Retrying transient downstream failure | correlation=CORR-52140 node=node-5 elapsed_ms=2211
+2026-06-03 09:00:27.8330|TRACE|Auth.Domain.TokenService|Publishing heartbeat metrics | correlation=CORR-18902 node=node-5 elapsed_ms=1490
+2026-06-03 09:00:27.9520|INFO|Search.Domain.IndexWriter|User session established | elapsed_ms=2285 request_id=REQ-7847 correlation=CORR-20916
+2026-06-03 09:00:28.0790|INFO|Observability.Metrics.PrometheusExporter|HTTP request completed successfully | correlation=CORR-46094 elapsed_ms=580 tenant=tenant-beta
+2026-06-03 09:00:28.1780|INFO|Observability.Metrics.PrometheusExporter|File import processed | node=node-4 elapsed_ms=1818 request_id=REQ-3694
+2026-06-03 09:00:28.3710|ERROR|Notifications.Api.EmailController|File import validation failed | node=node-6 correlation=CORR-60869 elapsed_ms=1672 exception=IOException
+2026-06-03 09:00:28.5210|WARN|Notifications.Domain.PushDispatcher|Slow query detected | node=node-4 request_id=REQ-9445 elapsed_ms=9
+2026-06-03 09:00:28.7120|DEBUG|Auth.Api.LoginController|Cache lookup completed | tenant=tenant-gamma request_id=REQ-3047 elapsed_ms=381
+2026-06-03 09:00:28.8910|TRACE|Infrastructure.Messaging.RabbitConsumer|Entering request pipeline | elapsed_ms=517 tenant=tenant-beta node=node-3
+2026-06-03 09:00:29.1070|DEBUG|Search.Domain.IndexWriter|Cache lookup completed | request_id=REQ-6091 tenant=tenant-delta correlation=CORR-62755
+2026-06-03 09:00:29.1540|ERROR|Notifications.Api.EmailController|Database command failed | request_id=REQ-3070 node=node-6 elapsed_ms=1108 exception=SqlException
+2026-06-03 09:00:29.1780|TRACE|Checkout.Domain.OrderCoordinator|Evaluating feature flag state | tenant=tenant-alpha elapsed_ms=942 correlation=CORR-85334
+2026-06-03 09:00:29.2090|INFO|Infrastructure.Caching.RedisCache|Scheduled job finished | elapsed_ms=808 request_id=REQ-2139 node=node-2
+2026-06-03 09:00:29.4020|INFO|Checkout.Api.CartController|Scheduled job finished | node=node-4 tenant=tenant-delta request_id=REQ-6373
+2026-06-03 09:00:29.4860|DEBUG|Observability.Logging.LogArchiver|Cache lookup completed | correlation=CORR-96559 elapsed_ms=213 tenant=tenant-gamma
+2026-06-03 09:00:29.6950|INFO|Infrastructure.Messaging.RabbitConsumer|HTTP request completed successfully | request_id=REQ-7162 elapsed_ms=1885 node=node-4
+2026-06-03 09:00:29.8510|DEBUG|Platform.Hosting.Startup|Cache lookup completed | elapsed_ms=352 node=node-3 tenant=tenant-gamma
+2026-06-03 09:00:29.9310|INFO|Billing.Domain.PaymentProcessor|File import processed | elapsed_ms=2090 tenant=tenant-alpha correlation=CORR-23415
+2026-06-03 09:00:29.9900|INFO|Observability.Logging.LogArchiver|Scheduled job finished | request_id=REQ-8985 node=node-5 elapsed_ms=1701
+2026-06-03 09:00:30.1550|TRACE|Platform.Hosting.Startup|Evaluating feature flag state | node=node-2 tenant=tenant-alpha elapsed_ms=792
+2026-06-03 09:00:30.2660|DEBUG|Auth.Api.LoginController|Cache lookup completed | node=node-5 correlation=CORR-63170 tenant=tenant-gamma
+2026-06-03 09:00:30.4470|TRACE|Search.Domain.IndexWriter|Preparing SQL command parameters | correlation=CORR-16368 tenant=tenant-beta elapsed_ms=1013
+2026-06-03 09:00:30.5670|TRACE|Platform.Hosting.Startup|Publishing heartbeat metrics | elapsed_ms=2321 request_id=REQ-1428 correlation=CORR-82350
+2026-06-03 09:00:30.6410|DEBUG|Platform.Config.FeatureFlagProvider|Cache lookup completed | tenant=tenant-gamma correlation=CORR-52423 request_id=REQ-7097
+2026-06-03 09:00:30.7650|INFO|Observability.Logging.LogArchiver|HTTP request completed successfully | tenant=tenant-alpha elapsed_ms=2344 correlation=CORR-44017
+2026-06-03 09:00:30.8620|WARN|Reporting.Domain.DailySummaryJob|Slow query detected | elapsed_ms=1697 correlation=CORR-96096 request_id=REQ-2686
+2026-06-03 09:00:30.8820|DEBUG|Reporting.Domain.DailySummaryJob|Resolved tenant configuration | elapsed_ms=1159 correlation=CORR-94960 tenant=tenant-beta
+2026-06-03 09:00:30.9090|INFO|Reporting.Domain.DailySummaryJob|File import processed | request_id=REQ-2066 node=node-3 correlation=CORR-11020
+2026-06-03 09:00:31.0940|DEBUG|Checkout.Domain.OrderCoordinator|Resolved tenant configuration | elapsed_ms=814 request_id=REQ-6111 node=node-5
+2026-06-03 09:00:31.2550|DEBUG|Platform.Hosting.Startup|Retry policy state updated | correlation=CORR-95555 elapsed_ms=115 node=node-3
+2026-06-03 09:00:31.3750|DEBUG|Infrastructure.Messaging.RabbitConsumer|Background worker lease renewed | elapsed_ms=1880 correlation=CORR-91579 node=node-4
+2026-06-03 09:00:31.3910|INFO|Billing.Api.InvoiceController|HTTP request completed successfully | request_id=REQ-9673 elapsed_ms=474 node=node-4
+2026-06-03 09:00:31.5220|ERROR|Platform.Config.FeatureFlagProvider|Unhandled exception while processing message | node=node-2 elapsed_ms=1396 correlation=CORR-60878 exception=SqlException
+2026-06-03 09:00:31.6350|WARN|Infrastructure.Storage.BlobUploader|Queue lag exceeded threshold | tenant=tenant-delta elapsed_ms=1912 correlation=CORR-06988
+2026-06-03 09:00:31.8490|INFO|Platform.Hosting.Startup|HTTP request completed successfully | request_id=REQ-7201 elapsed_ms=2158 node=node-6
+2026-06-03 09:00:31.9010|ERROR|Observability.Metrics.PrometheusExporter|Outbound API returned error status | correlation=CORR-49311 node=node-6 elapsed_ms=1753 exception=System.InvalidOperationException
+2026-06-03 09:00:32.0390|WARN|Infrastructure.Caching.RedisCache|Queue lag exceeded threshold | node=node-6 tenant=tenant-beta elapsed_ms=514
+2026-06-03 09:00:32.1080|TRACE|Platform.Config.FeatureFlagProvider|Preparing SQL command parameters | correlation=CORR-25956 node=node-4 elapsed_ms=2192
+2026-06-03 09:00:32.3200|TRACE|Reporting.Domain.DailySummaryJob|Preparing SQL command parameters | request_id=REQ-6682 correlation=CORR-76050 node=node-4
+2026-06-03 09:00:32.4370|TRACE|Auth.Api.LoginController|Publishing heartbeat metrics | tenant=tenant-alpha elapsed_ms=1444 node=node-6
+2026-06-03 09:00:32.4750|DEBUG|Notifications.Domain.PushDispatcher|Retry policy state updated | elapsed_ms=2358 correlation=CORR-31264 request_id=REQ-9707
+2026-06-03 09:00:32.6170|WARN|Observability.Metrics.PrometheusExporter|Queue lag exceeded threshold | elapsed_ms=2191 request_id=REQ-4086 correlation=CORR-89296
+2026-06-03 09:00:32.7780|WARN|Billing.Domain.PaymentProcessor|Retrying transient downstream failure | request_id=REQ-3925 correlation=CORR-39549 tenant=tenant-gamma
+2026-06-03 09:00:32.8730|ERROR|Catalog.Domain.IndexRefreshJob|Unhandled exception while processing message | elapsed_ms=912 node=node-5 correlation=CORR-73492 exception=System.InvalidOperationException
+2026-06-03 09:00:32.9560|DEBUG|Catalog.Api.ProductController|Background worker lease renewed | request_id=REQ-1348 node=node-6 elapsed_ms=1620
+2026-06-03 09:00:32.9930|TRACE|Checkout.Domain.OrderCoordinator|Publishing heartbeat metrics | request_id=REQ-8061 elapsed_ms=361 correlation=CORR-18405
+2026-06-03 09:00:33.2070|TRACE|Billing.Api.InvoiceController|Publishing heartbeat metrics | node=node-2 request_id=REQ-3867 tenant=tenant-alpha
+2026-06-03 09:00:33.2510|DEBUG|Notifications.Api.EmailController|Cache lookup completed | request_id=REQ-0341 node=node-3 correlation=CORR-42375
+2026-06-03 09:00:33.3400|INFO|Billing.Api.InvoiceController|HTTP request completed successfully | elapsed_ms=582 request_id=REQ-8365 tenant=tenant-alpha
+2026-06-03 09:00:33.5000|ERROR|Observability.Metrics.PrometheusExporter|Unhandled exception while processing message | node=node-3 elapsed_ms=1925 request_id=REQ-9076 exception=IOException
+2026-06-03 09:00:33.5890|INFO|Platform.Hosting.Startup|User session established | request_id=REQ-3497 elapsed_ms=2188 node=node-5
+2026-06-03 09:00:33.7590|INFO|Infrastructure.Storage.BlobUploader|File import processed | correlation=CORR-26658 request_id=REQ-2083 node=node-2
+2026-06-03 09:00:33.9710|DEBUG|Catalog.Api.ProductController|Resolved tenant configuration | tenant=tenant-beta node=node-3 elapsed_ms=369
+2026-06-03 09:00:34.0180|INFO|Platform.Config.FeatureFlagProvider|User session established | correlation=CORR-32681 elapsed_ms=1358 node=node-6
+2026-06-03 09:00:34.2120|WARN|Observability.Logging.LogArchiver|Configuration override missing optional value | elapsed_ms=201 correlation=CORR-20525 request_id=REQ-0080
+2026-06-03 09:00:34.3950|TRACE|Notifications.Api.EmailController|Entering request pipeline | correlation=CORR-16103 elapsed_ms=1745 node=node-3
+2026-06-03 09:00:34.4430|WARN|Notifications.Api.EmailController|Queue lag exceeded threshold | request_id=REQ-5098 node=node-1 elapsed_ms=2023
+2026-06-03 09:00:34.6180|INFO|Reporting.Domain.DailySummaryJob|Scheduled job finished | request_id=REQ-2488 tenant=tenant-alpha correlation=CORR-51184
+2026-06-03 09:00:34.7700|WARN|Checkout.Api.CartController|Retrying transient downstream failure | elapsed_ms=875 request_id=REQ-3468 tenant=tenant-alpha
+2026-06-03 09:00:34.8910|TRACE|Notifications.Api.EmailController|Preparing SQL command parameters | request_id=REQ-7693 correlation=CORR-27753 tenant=tenant-delta
+2026-06-03 09:00:35.0180|TRACE|Auth.Api.LoginController|Evaluating feature flag state | elapsed_ms=1579 request_id=REQ-3487 node=node-6
+2026-06-03 09:00:35.1640|INFO|Auth.Api.LoginController|Scheduled job finished | request_id=REQ-3716 tenant=tenant-beta correlation=CORR-72678
+2026-06-03 09:00:35.2330|INFO|Infrastructure.Storage.BlobUploader|User session established | tenant=tenant-delta request_id=REQ-2963 elapsed_ms=377
+2026-06-03 09:00:35.2700|TRACE|Billing.Api.InvoiceController|Entering request pipeline | node=node-3 request_id=REQ-4550 elapsed_ms=103
+2026-06-03 09:00:35.3680|INFO|Infrastructure.Caching.RedisCache|HTTP request completed successfully | elapsed_ms=1193 request_id=REQ-3465 correlation=CORR-44596
+2026-06-03 09:00:35.4640|INFO|Catalog.Api.ProductController|HTTP request completed successfully | tenant=tenant-beta request_id=REQ-4912 elapsed_ms=1249
+2026-06-03 09:00:35.6680|DEBUG|Catalog.Domain.IndexRefreshJob|Resolved tenant configuration | tenant=tenant-beta elapsed_ms=654 request_id=REQ-2927
+2026-06-03 09:00:35.7910|WARN|Observability.Logging.LogArchiver|Retrying transient downstream failure | elapsed_ms=1816 tenant=tenant-beta correlation=CORR-01221
+2026-06-03 09:00:35.9130|TRACE|Reporting.Domain.DailySummaryJob|Publishing heartbeat metrics | correlation=CORR-85926 tenant=tenant-delta request_id=REQ-2923
+2026-06-03 09:00:36.1100|TRACE|Auth.Domain.TokenService|Publishing heartbeat metrics | node=node-6 elapsed_ms=1513 correlation=CORR-76095
+2026-06-03 09:00:36.2080|DEBUG|Reporting.Domain.DailySummaryJob|Cache lookup completed | request_id=REQ-8912 elapsed_ms=1969 tenant=tenant-gamma
+2026-06-03 09:00:36.3850|DEBUG|Billing.Domain.PaymentProcessor|Cache lookup completed | correlation=CORR-97986 request_id=REQ-4712 node=node-2
+2026-06-03 09:00:36.4010|DEBUG|Notifications.Domain.PushDispatcher|Retry policy state updated | tenant=tenant-beta request_id=REQ-8805 correlation=CORR-94824
+2026-06-03 09:00:36.4430|TRACE|Observability.Logging.LogArchiver|Evaluating feature flag state | tenant=tenant-alpha correlation=CORR-88400 request_id=REQ-0832
+2026-06-03 09:00:36.4620|WARN|Infrastructure.Messaging.RabbitConsumer|Queue lag exceeded threshold | correlation=CORR-09104 elapsed_ms=1401 node=node-1
+2026-06-03 09:00:36.6810|DEBUG|Billing.Domain.PaymentProcessor|Background worker lease renewed | node=node-3 tenant=tenant-beta elapsed_ms=1369
+2026-06-03 09:00:36.8610|DEBUG|Search.Api.QueryController|Retry policy state updated | correlation=CORR-79538 node=node-2 tenant=tenant-beta
+2026-06-03 09:00:37.0330|DEBUG|Billing.Domain.PaymentProcessor|Cache lookup completed | request_id=REQ-7127 elapsed_ms=1738 tenant=tenant-gamma
+2026-06-03 09:00:37.0480|DEBUG|Notifications.Domain.PushDispatcher|Background worker lease renewed | request_id=REQ-4720 correlation=CORR-55534 elapsed_ms=2080
+2026-06-03 09:00:37.0830|TRACE|Billing.Domain.PaymentProcessor|Evaluating feature flag state | correlation=CORR-84353 request_id=REQ-5899 elapsed_ms=1007
+2026-06-03 09:00:37.2090|INFO|Observability.Logging.LogArchiver|File import processed | correlation=CORR-88588 elapsed_ms=141 tenant=tenant-delta
+2026-06-03 09:00:37.2610|INFO|Infrastructure.Messaging.RabbitConsumer|Scheduled job finished | node=node-5 correlation=CORR-48996 request_id=REQ-7778
+2026-06-03 09:00:37.3810|TRACE|Auth.Api.LoginController|Entering request pipeline | request_id=REQ-8580 correlation=CORR-46147 node=node-1
+2026-06-03 09:00:37.5160|WARN|Search.Api.QueryController|Queue lag exceeded threshold | tenant=tenant-alpha correlation=CORR-70936 request_id=REQ-6988
+2026-06-03 09:00:37.6990|DEBUG|Notifications.Api.EmailController|Resolved tenant configuration | correlation=CORR-82997 elapsed_ms=1460 request_id=REQ-7170
+2026-06-03 09:00:37.8250|INFO|Auth.Domain.TokenService|Scheduled job finished | elapsed_ms=2117 correlation=CORR-65474 request_id=REQ-9331
+2026-06-03 09:00:37.8750|DEBUG|Infrastructure.Caching.RedisCache|Background worker lease renewed | correlation=CORR-33403 tenant=tenant-delta request_id=REQ-4975
+2026-06-03 09:00:38.0620|DEBUG|Infrastructure.Caching.RedisCache|Background worker lease renewed | correlation=CORR-01874 elapsed_ms=651 node=node-1
+2026-06-03 09:00:38.1330|INFO|Infrastructure.Storage.BlobUploader|Scheduled job finished | request_id=REQ-7761 elapsed_ms=1905 node=node-5
+2026-06-03 09:00:38.2670|WARN|Billing.Domain.PaymentProcessor|Queue lag exceeded threshold | node=node-4 tenant=tenant-alpha correlation=CORR-37513
+2026-06-03 09:00:38.2840|TRACE|Search.Api.QueryController|Entering request pipeline | correlation=CORR-22452 tenant=tenant-delta request_id=REQ-7279
+2026-06-03 09:00:38.3640|INFO|Platform.Config.FeatureFlagProvider|HTTP request completed successfully | request_id=REQ-5588 node=node-6 tenant=tenant-alpha
+2026-06-03 09:00:38.5250|DEBUG|Infrastructure.Storage.BlobUploader|Cache lookup completed | node=node-1 elapsed_ms=2049 correlation=CORR-03697
+2026-06-03 09:00:38.6860|WARN|Reporting.Domain.DailySummaryJob|Queue lag exceeded threshold | elapsed_ms=858 node=node-6 request_id=REQ-4046
+2026-06-03 09:00:38.7040|ERROR|Catalog.Api.ProductController|File import validation failed | node=node-4 elapsed_ms=573 tenant=tenant-alpha exception=System.TimeoutException
+2026-06-03 09:00:38.9140|DEBUG|Infrastructure.Caching.RedisCache|Background worker lease renewed | request_id=REQ-4774 node=node-3 correlation=CORR-75447
+2026-06-03 09:00:38.9790|FATAL|Reporting.Domain.DailySummaryJob|Fatal exception terminated worker process | request_id=REQ-4189 tenant=tenant-alpha elapsed_ms=1826 exception=System.InvalidOperationException
+2026-06-03 09:00:39.0400|INFO|Checkout.Api.CartController|User session established | elapsed_ms=2024 request_id=REQ-6378 node=node-3
+2026-06-03 09:00:39.0610|DEBUG|Notifications.Api.EmailController|Retry policy state updated | node=node-4 tenant=tenant-alpha request_id=REQ-0844
+2026-06-03 09:00:39.2070|INFO|Infrastructure.Caching.RedisCache|HTTP request completed successfully | elapsed_ms=766 node=node-2 correlation=CORR-77389
+2026-06-03 09:00:39.3770|ERROR|Observability.Metrics.PrometheusExporter|Unhandled exception while processing message | tenant=tenant-alpha correlation=CORR-21425 elapsed_ms=696 exception=System.TimeoutException
+2026-06-03 09:00:39.4300|TRACE|Infrastructure.Messaging.RabbitConsumer|Preparing SQL command parameters | correlation=CORR-85966 request_id=REQ-2554 node=node-1
+2026-06-03 09:00:39.6280|TRACE|Observability.Logging.LogArchiver|Entering request pipeline | correlation=CORR-27150 request_id=REQ-4847 tenant=tenant-beta
+2026-06-03 09:00:39.7560|INFO|Billing.Domain.PaymentProcessor|File import processed | tenant=tenant-beta request_id=REQ-4043 correlation=CORR-95301
+2026-06-03 09:00:39.9560|TRACE|Billing.Domain.PaymentProcessor|Evaluating feature flag state | node=node-6 tenant=tenant-alpha elapsed_ms=866
+2026-06-03 09:00:40.1310|INFO|Catalog.Domain.IndexRefreshJob|Scheduled job finished | tenant=tenant-alpha correlation=CORR-77197 node=node-5
+2026-06-03 09:00:40.2020|DEBUG|Search.Domain.IndexWriter|Cache lookup completed | node=node-5 elapsed_ms=1521 correlation=CORR-34979
+2026-06-03 09:00:40.3040|WARN|Reporting.Domain.DailySummaryJob|Slow query detected | tenant=tenant-delta node=node-2 request_id=REQ-2708
+2026-06-03 09:00:40.3670|WARN|Auth.Domain.TokenService|Queue lag exceeded threshold | request_id=REQ-2790 tenant=tenant-delta node=node-6
+2026-06-03 09:00:40.4890|INFO|Infrastructure.Storage.BlobUploader|User session established | request_id=REQ-8317 elapsed_ms=2022 tenant=tenant-gamma
+2026-06-03 09:00:40.6410|INFO|Auth.Api.LoginController|Scheduled job finished | correlation=CORR-09046 request_id=REQ-7093 tenant=tenant-beta
+2026-06-03 09:00:40.7460|INFO|Catalog.Api.ProductController|User session established | tenant=tenant-beta correlation=CORR-07833 request_id=REQ-5225
+2026-06-03 09:00:40.8860|DEBUG|Platform.Config.FeatureFlagProvider|Background worker lease renewed | correlation=CORR-00633 elapsed_ms=621 tenant=tenant-delta
+2026-06-03 09:00:41.0430|INFO|Checkout.Api.CartController|File import processed | node=node-3 elapsed_ms=1654 request_id=REQ-3676
+2026-06-03 09:00:41.2620|INFO|Infrastructure.Caching.RedisCache|Scheduled job finished | correlation=CORR-65105 node=node-6 request_id=REQ-0398
+2026-06-03 09:00:41.3620|INFO|Infrastructure.Storage.BlobUploader|User session established | request_id=REQ-4370 elapsed_ms=319 tenant=tenant-delta
+2026-06-03 09:00:41.5300|INFO|Platform.Hosting.Startup|File import processed | request_id=REQ-0084 node=node-2 correlation=CORR-77326
+2026-06-03 09:00:41.6120|WARN|Catalog.Api.ProductController|Queue lag exceeded threshold | elapsed_ms=936 correlation=CORR-28748 tenant=tenant-delta
+2026-06-03 09:00:41.6440|INFO|Infrastructure.Messaging.RabbitConsumer|Scheduled job finished | elapsed_ms=410 node=node-3 correlation=CORR-63912
+2026-06-03 09:00:41.8480|WARN|Checkout.Api.CartController|Configuration override missing optional value | elapsed_ms=2219 tenant=tenant-beta correlation=CORR-46938
+2026-06-03 09:00:41.9590|INFO|Infrastructure.Storage.BlobUploader|File import processed | tenant=tenant-beta elapsed_ms=1793 request_id=REQ-0441
+2026-06-03 09:00:42.1340|TRACE|Catalog.Domain.IndexRefreshJob|Entering request pipeline | tenant=tenant-beta elapsed_ms=527 request_id=REQ-4469
+2026-06-03 09:00:42.2410|WARN|Search.Domain.IndexWriter|Slow query detected | node=node-4 correlation=CORR-44343 elapsed_ms=713
+2026-06-03 09:00:42.3230|DEBUG|Observability.Logging.LogArchiver|Cache lookup completed | elapsed_ms=1100 node=node-1 request_id=REQ-3060
+2026-06-03 09:00:42.4190|DEBUG|Billing.Api.InvoiceController|Resolved tenant configuration | request_id=REQ-9484 correlation=CORR-15708 node=node-4
+2026-06-03 09:00:42.5660|TRACE|Catalog.Api.ProductController|Entering request pipeline | node=node-5 tenant=tenant-alpha elapsed_ms=2072
+2026-06-03 09:00:42.7130|ERROR|Catalog.Domain.IndexRefreshJob|Unhandled exception while processing message | elapsed_ms=772 node=node-3 correlation=CORR-92351 exception=System.TimeoutException
+2026-06-03 09:00:42.7680|INFO|Observability.Logging.LogArchiver|User session established | request_id=REQ-8200 node=node-6 elapsed_ms=1517
+2026-06-03 09:00:42.8690|ERROR|Infrastructure.Caching.RedisCache|Database command failed | elapsed_ms=2049 request_id=REQ-6237 tenant=tenant-gamma exception=System.TimeoutException
+2026-06-03 09:00:42.9320|INFO|Observability.Logging.LogArchiver|File import processed | request_id=REQ-1067 node=node-4 elapsed_ms=2072
+2026-06-03 09:00:42.9540|INFO|Billing.Api.InvoiceController|File import processed | tenant=tenant-beta node=node-4 request_id=REQ-5480
+2026-06-03 09:00:43.0570|TRACE|Search.Api.QueryController|Evaluating feature flag state | tenant=tenant-delta elapsed_ms=1044 node=node-1
+2026-06-03 09:00:43.2380|INFO|Platform.Config.FeatureFlagProvider|User session established | correlation=CORR-45678 node=node-4 elapsed_ms=986
+2026-06-03 09:00:43.4470|TRACE|Infrastructure.Storage.BlobUploader|Publishing heartbeat metrics | correlation=CORR-48981 request_id=REQ-8547 node=node-6
+2026-06-03 09:00:43.6270|ERROR|Observability.Logging.LogArchiver|Outbound API returned error status | tenant=tenant-alpha elapsed_ms=1635 correlation=CORR-92926 exception=IOException
+2026-06-03 09:00:43.6620|WARN|Infrastructure.Storage.BlobUploader|Retrying transient downstream failure | correlation=CORR-02692 request_id=REQ-4438 elapsed_ms=1618
+2026-06-03 09:00:43.7630|INFO|Auth.Api.LoginController|User session established | node=node-1 elapsed_ms=1045 request_id=REQ-9123
+2026-06-03 09:00:43.7990|INFO|Search.Api.QueryController|HTTP request completed successfully | request_id=REQ-6046 tenant=tenant-delta correlation=CORR-18297
+2026-06-03 09:00:43.8580|DEBUG|Auth.Api.LoginController|Resolved tenant configuration | correlation=CORR-04103 elapsed_ms=1238 node=node-3
+2026-06-03 09:00:43.9540|TRACE|Billing.Domain.PaymentProcessor|Evaluating feature flag state | node=node-6 elapsed_ms=2340 request_id=REQ-8651
+2026-06-03 09:00:44.1680|DEBUG|Infrastructure.Storage.BlobUploader|Resolved tenant configuration | tenant=tenant-delta request_id=REQ-7856 correlation=CORR-26714
+2026-06-03 09:00:44.2910|INFO|Search.Domain.IndexWriter|HTTP request completed successfully | request_id=REQ-4005 elapsed_ms=209 node=node-2
+2026-06-03 09:00:44.4920|INFO|Billing.Api.InvoiceController|HTTP request completed successfully | request_id=REQ-2108 correlation=CORR-37543 elapsed_ms=718
+2026-06-03 09:00:44.5110|WARN|Auth.Domain.TokenService|Queue lag exceeded threshold | correlation=CORR-64349 elapsed_ms=20 tenant=tenant-gamma
+2026-06-03 09:00:44.6430|WARN|Search.Api.QueryController|Queue lag exceeded threshold | elapsed_ms=2359 node=node-2 correlation=CORR-87297
+2026-06-03 09:00:44.8130|TRACE|Infrastructure.Caching.RedisCache|Entering request pipeline | tenant=tenant-beta request_id=REQ-4997 node=node-3
+2026-06-03 09:00:44.9410|INFO|Observability.Logging.LogArchiver|File import processed | elapsed_ms=892 request_id=REQ-9370 node=node-3
+2026-06-03 09:00:45.0470|INFO|Search.Domain.IndexWriter|Scheduled job finished | tenant=tenant-gamma correlation=CORR-65182 request_id=REQ-1806
+2026-06-03 09:00:45.2570|FATAL|Billing.Api.InvoiceController|Application host is shutting down unexpectedly | tenant=tenant-alpha elapsed_ms=972 correlation=CORR-17299 exception=System.InvalidOperationException
+2026-06-03 09:00:45.3520|WARN|Platform.Hosting.Startup|Queue lag exceeded threshold | node=node-3 request_id=REQ-4174 tenant=tenant-beta
+2026-06-03 09:00:45.4220|ERROR|Infrastructure.Storage.BlobUploader|File import validation failed | elapsed_ms=76 correlation=CORR-38213 node=node-3 exception=System.InvalidOperationException
+2026-06-03 09:00:45.4380|INFO|Notifications.Api.EmailController|File import processed | correlation=CORR-67224 request_id=REQ-6041 elapsed_ms=1201
+2026-06-03 09:00:45.4890|WARN|Notifications.Api.EmailController|Configuration override missing optional value | elapsed_ms=338 correlation=CORR-09726 request_id=REQ-8930
+2026-06-03 09:00:45.6300|INFO|Catalog.Api.ProductController|Scheduled job finished | request_id=REQ-8568 node=node-4 correlation=CORR-82903
+2026-06-03 09:00:45.7800|TRACE|Search.Domain.IndexWriter|Evaluating feature flag state | tenant=tenant-delta node=node-1 elapsed_ms=188
+2026-06-03 09:00:45.9080|INFO|Observability.Logging.LogArchiver|HTTP request completed successfully | node=node-4 request_id=REQ-6216 tenant=tenant-alpha
+2026-06-03 09:00:46.0700|TRACE|Observability.Metrics.PrometheusExporter|Publishing heartbeat metrics | node=node-2 request_id=REQ-1309 tenant=tenant-beta
+2026-06-03 09:00:46.1020|INFO|Reporting.Domain.DailySummaryJob|File import processed | request_id=REQ-0834 correlation=CORR-96927 elapsed_ms=2297
+2026-06-03 09:00:46.2710|TRACE|Billing.Domain.PaymentProcessor|Preparing SQL command parameters | node=node-2 tenant=tenant-delta request_id=REQ-2743
+2026-06-03 09:00:46.4320|DEBUG|Checkout.Api.CartController|Resolved tenant configuration | node=node-6 tenant=tenant-alpha request_id=REQ-5253
+2026-06-03 09:00:46.5920|ERROR|Auth.Domain.TokenService|Unhandled exception while processing message | tenant=tenant-alpha correlation=CORR-92451 elapsed_ms=1466 exception=SqlException
+2026-06-03 09:00:46.6180|TRACE|Checkout.Domain.OrderCoordinator|Preparing SQL command parameters | tenant=tenant-delta node=node-4 request_id=REQ-8846
+2026-06-03 09:00:46.7520|INFO|Billing.Domain.PaymentProcessor|User session established | node=node-4 elapsed_ms=305 tenant=tenant-gamma
+2026-06-03 09:00:46.9100|WARN|Platform.Config.FeatureFlagProvider|Slow query detected | node=node-5 request_id=REQ-9026 tenant=tenant-delta
+2026-06-03 09:00:47.0880|TRACE|Observability.Metrics.PrometheusExporter|Evaluating feature flag state | elapsed_ms=827 correlation=CORR-92000 request_id=REQ-8815
+2026-06-03 09:00:47.1590|INFO|Reporting.Domain.DailySummaryJob|User session established | request_id=REQ-2081 elapsed_ms=2187 correlation=CORR-52365
+2026-06-03 09:00:47.2980|WARN|Notifications.Api.EmailController|Configuration override missing optional value | node=node-2 request_id=REQ-7016 correlation=CORR-97061
+2026-06-03 09:00:47.3360|DEBUG|Auth.Api.LoginController|Cache lookup completed | elapsed_ms=2392 tenant=tenant-gamma correlation=CORR-67974
+2026-06-03 09:00:47.5500|DEBUG|Auth.Api.LoginController|Retry policy state updated | elapsed_ms=417 request_id=REQ-5712 tenant=tenant-alpha
+2026-06-03 09:00:47.7450|DEBUG|Catalog.Api.ProductController|Resolved tenant configuration | elapsed_ms=543 node=node-2 request_id=REQ-5579
+2026-06-03 09:00:47.9500|INFO|Checkout.Domain.OrderCoordinator|Scheduled job finished | node=node-5 correlation=CORR-41628 tenant=tenant-gamma
+2026-06-03 09:00:47.9930|INFO|Observability.Metrics.PrometheusExporter|File import processed | node=node-2 elapsed_ms=809 request_id=REQ-9007
+2026-06-03 09:00:48.1260|INFO|Notifications.Api.EmailController|File import processed | tenant=tenant-alpha elapsed_ms=1828 node=node-5
+2026-06-03 09:00:48.3350|TRACE|Observability.Metrics.PrometheusExporter|Publishing heartbeat metrics | correlation=CORR-25290 tenant=tenant-alpha node=node-4
+2026-06-03 09:00:48.5380|TRACE|Platform.Hosting.Startup|Publishing heartbeat metrics | node=node-2 correlation=CORR-84539 tenant=tenant-delta
+2026-06-03 09:00:48.6770|DEBUG|Catalog.Domain.IndexRefreshJob|Resolved tenant configuration | elapsed_ms=1900 request_id=REQ-4793 correlation=CORR-92754
+2026-06-03 09:00:48.8530|TRACE|Auth.Domain.TokenService|Preparing SQL command parameters | correlation=CORR-43448 node=node-6 tenant=tenant-gamma
+2026-06-03 09:00:48.8820|INFO|Reporting.Domain.DailySummaryJob|File import processed | request_id=REQ-9488 elapsed_ms=1155 correlation=CORR-27760
+2026-06-03 09:00:48.9430|INFO|Infrastructure.Caching.RedisCache|User session established | tenant=tenant-beta correlation=CORR-24701 elapsed_ms=1933
+2026-06-03 09:00:49.0510|WARN|Platform.Config.FeatureFlagProvider|Retrying transient downstream failure | request_id=REQ-4073 node=node-3 tenant=tenant-alpha
+2026-06-03 09:00:49.2450|WARN|Checkout.Domain.OrderCoordinator|Configuration override missing optional value | request_id=REQ-2035 node=node-3 elapsed_ms=1003
+2026-06-03 09:00:49.3300|INFO|Checkout.Domain.OrderCoordinator|User session established | request_id=REQ-7420 correlation=CORR-00062 tenant=tenant-delta
+2026-06-03 09:00:49.3710|ERROR|Search.Domain.IndexWriter|File import validation failed | tenant=tenant-delta request_id=REQ-7839 correlation=CORR-87052 exception=SqlException
+2026-06-03 09:00:49.5280|INFO|Infrastructure.Storage.BlobUploader|HTTP request completed successfully | node=node-6 request_id=REQ-1913 correlation=CORR-00422
+2026-06-03 09:00:49.7280|TRACE|Auth.Api.LoginController|Preparing SQL command parameters | tenant=tenant-beta elapsed_ms=1869 correlation=CORR-76750
+2026-06-03 09:00:49.8670|INFO|Infrastructure.Storage.BlobUploader|User session established | tenant=tenant-gamma node=node-3 elapsed_ms=1192
+2026-06-03 09:00:49.9820|TRACE|Notifications.Domain.PushDispatcher|Preparing SQL command parameters | correlation=CORR-96918 tenant=tenant-beta node=node-6
+2026-06-03 09:00:50.0300|INFO|Observability.Metrics.PrometheusExporter|HTTP request completed successfully | tenant=tenant-delta request_id=REQ-8067 node=node-5
+2026-06-03 09:00:50.1070|WARN|Notifications.Domain.PushDispatcher|Slow query detected | request_id=REQ-9035 elapsed_ms=1535 correlation=CORR-41869
+2026-06-03 09:00:50.1420|ERROR|Notifications.Api.EmailController|File import validation failed | correlation=CORR-98025 node=node-1 elapsed_ms=1426 exception=System.InvalidOperationException
+2026-06-03 09:00:50.2130|INFO|Notifications.Domain.PushDispatcher|HTTP request completed successfully | node=node-5 elapsed_ms=1013 tenant=tenant-alpha
+2026-06-03 09:00:50.2290|INFO|Catalog.Domain.IndexRefreshJob|User session established | request_id=REQ-9563 correlation=CORR-86586 tenant=tenant-gamma
+2026-06-03 09:00:50.3610|TRACE|Catalog.Domain.IndexRefreshJob|Publishing heartbeat metrics | correlation=CORR-57422 node=node-2 tenant=tenant-alpha
+2026-06-03 09:00:50.4130|ERROR|Checkout.Domain.OrderCoordinator|File import validation failed | correlation=CORR-73268 node=node-4 tenant=tenant-beta exception=System.InvalidOperationException
+2026-06-03 09:00:50.4440|DEBUG|Platform.Config.FeatureFlagProvider|Resolved tenant configuration | request_id=REQ-2657 node=node-5 tenant=tenant-beta
+2026-06-03 09:00:50.5280|TRACE|Observability.Logging.LogArchiver|Entering request pipeline | node=node-1 request_id=REQ-7116 tenant=tenant-delta
+2026-06-03 09:00:50.6020|WARN|Infrastructure.Storage.BlobUploader|Slow query detected | tenant=tenant-alpha elapsed_ms=2282 node=node-5
+2026-06-03 09:00:50.7230|INFO|Platform.Config.FeatureFlagProvider|Scheduled job finished | tenant=tenant-beta elapsed_ms=1998 node=node-3
+2026-06-03 09:00:50.8000|TRACE|Infrastructure.Caching.RedisCache|Evaluating feature flag state | tenant=tenant-beta request_id=REQ-6600 elapsed_ms=1995
+2026-06-03 09:00:50.8160|DEBUG|Observability.Logging.LogArchiver|Cache lookup completed | request_id=REQ-5438 elapsed_ms=395 correlation=CORR-64837
+2026-06-03 09:00:50.9990|TRACE|Catalog.Domain.IndexRefreshJob|Preparing SQL command parameters | request_id=REQ-0646 elapsed_ms=808 tenant=tenant-gamma
+2026-06-03 09:00:51.0380|INFO|Observability.Logging.LogArchiver|User session established | correlation=CORR-66337 elapsed_ms=1125 request_id=REQ-2518
+2026-06-03 09:00:51.1370|WARN|Auth.Domain.TokenService|Slow query detected | request_id=REQ-5398 elapsed_ms=342 node=node-6
+2026-06-03 09:00:51.1660|WARN|Auth.Domain.TokenService|Slow query detected | correlation=CORR-17273 elapsed_ms=1269 request_id=REQ-7878
+2026-06-03 09:00:51.1950|TRACE|Checkout.Domain.OrderCoordinator|Entering request pipeline | elapsed_ms=642 correlation=CORR-12717 node=node-6
+2026-06-03 09:00:51.3350|WARN|Observability.Logging.LogArchiver|Queue lag exceeded threshold | elapsed_ms=1016 node=node-6 request_id=REQ-8604
+2026-06-03 09:00:51.4760|DEBUG|Billing.Api.InvoiceController|Cache lookup completed | request_id=REQ-5031 correlation=CORR-80282 node=node-3
+2026-06-03 09:00:51.5960|INFO|Billing.Api.InvoiceController|User session established | node=node-6 correlation=CORR-41663 elapsed_ms=1155
+2026-06-03 09:00:51.8010|WARN|Checkout.Domain.OrderCoordinator|Queue lag exceeded threshold | request_id=REQ-3020 node=node-3 elapsed_ms=2246
+2026-06-03 09:00:51.9490|DEBUG|Infrastructure.Storage.BlobUploader|Resolved tenant configuration | elapsed_ms=2205 node=node-4 tenant=tenant-gamma
+2026-06-03 09:00:52.0360|ERROR|Reporting.Domain.DailySummaryJob|Database command failed | tenant=tenant-delta request_id=REQ-5435 elapsed_ms=615 exception=IOException
+2026-06-03 09:00:52.0580|ERROR|Notifications.Api.EmailController|Outbound API returned error status | tenant=tenant-delta correlation=CORR-33838 node=node-4 exception=System.InvalidOperationException
+2026-06-03 09:00:52.2030|TRACE|Billing.Domain.PaymentProcessor|Entering request pipeline | tenant=tenant-gamma request_id=REQ-4197 node=node-4
+2026-06-03 09:00:52.3400|TRACE|Billing.Domain.PaymentProcessor|Preparing SQL command parameters | correlation=CORR-12981 elapsed_ms=2024 request_id=REQ-4292
+2026-06-03 09:00:52.4860|WARN|Platform.Config.FeatureFlagProvider|Slow query detected | elapsed_ms=1798 tenant=tenant-delta request_id=REQ-3696
+2026-06-03 09:00:52.5430|TRACE|Auth.Api.LoginController|Preparing SQL command parameters | node=node-1 request_id=REQ-2191 correlation=CORR-41855
+2026-06-03 09:00:52.7000|DEBUG|Billing.Domain.PaymentProcessor|Retry policy state updated | node=node-2 tenant=tenant-delta elapsed_ms=1875
+2026-06-03 09:00:52.7670|DEBUG|Auth.Domain.TokenService|Background worker lease renewed | tenant=tenant-delta request_id=REQ-9839 node=node-5
+2026-06-03 09:00:52.8010|TRACE|Billing.Api.InvoiceController|Publishing heartbeat metrics | request_id=REQ-1360 tenant=tenant-alpha correlation=CORR-70978
+2026-06-03 09:00:52.9390|ERROR|Checkout.Domain.OrderCoordinator|Database command failed | tenant=tenant-delta node=node-3 request_id=REQ-4457 exception=SqlException
+2026-06-03 09:00:53.1410|ERROR|Search.Api.QueryController|Outbound API returned error status | elapsed_ms=1630 node=node-6 correlation=CORR-64356 exception=SqlException
+2026-06-03 09:00:53.2850|WARN|Observability.Metrics.PrometheusExporter|Configuration override missing optional value | node=node-3 correlation=CORR-11794 elapsed_ms=1870
+2026-06-03 09:00:53.4410|INFO|Search.Api.QueryController|User session established | tenant=tenant-gamma correlation=CORR-41686 request_id=REQ-1269
+2026-06-03 09:00:53.5640|INFO|Auth.Domain.TokenService|File import processed | correlation=CORR-11927 node=node-6 request_id=REQ-3814
+2026-06-03 09:00:53.5980|INFO|Reporting.Domain.DailySummaryJob|User session established | tenant=tenant-gamma elapsed_ms=2254 request_id=REQ-2586
+2026-06-03 09:00:53.6270|WARN|Observability.Logging.LogArchiver|Configuration override missing optional value | request_id=REQ-4322 node=node-1 correlation=CORR-17159
+2026-06-03 09:00:53.6430|INFO|Observability.Metrics.PrometheusExporter|Scheduled job finished | request_id=REQ-9513 correlation=CORR-34066 node=node-3
+2026-06-03 09:00:53.7550|WARN|Catalog.Api.ProductController|Retrying transient downstream failure | tenant=tenant-gamma elapsed_ms=105 node=node-5
+2026-06-03 09:00:53.8180|INFO|Catalog.Api.ProductController|HTTP request completed successfully | correlation=CORR-87754 elapsed_ms=860 node=node-4
+2026-06-03 09:00:53.8980|ERROR|Notifications.Domain.PushDispatcher|File import validation failed | node=node-6 request_id=REQ-6456 tenant=tenant-alpha exception=IOException
