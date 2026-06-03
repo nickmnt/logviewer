@@ -1,0 +1,9 @@
+[project]
+name = "logviewer"
+version = "0.1.0"
+description = "TDD scaffold for a full-fledged log viewing TUI"
+requires-python = ">=3.9"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
