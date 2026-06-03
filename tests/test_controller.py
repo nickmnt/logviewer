@@ -125,3 +125,17 @@ def test_controller_handles_empty_file_without_selection(tmp_path) -> None:
     assert snapshot.total_entries == 0
     assert snapshot.visible_entries == ()
     assert controller.selected_entry() is None
+
+
+def test_controller_poll_current_file_reports_unchanged_without_reloading(tmp_path) -> None:
+    log_file = tmp_path / "app.log"
+    log_file.write_text("2026-06-03 09:14:27.1234|TRACE|Category1|one")
+    controller = ViewerController()
+    controller.open_file(str(log_file))
+    controller.move_selection(0)
+
+    snapshot, changed = controller.poll_current_file()
+
+    assert changed is False
+    assert snapshot.total_entries == 1
+    assert snapshot.selected_index == 0

@@ -358,8 +358,9 @@ class LogViewerApp(App[None]):
     def _refresh_follow_mode(self) -> None:
         snapshot = self.controller.snapshot()
         if snapshot.current_file and not snapshot.chrome.paused:
-            self.controller.reload_current_file()
-            self._sync_view()
+            _snapshot, changed = self.controller.poll_current_file()
+            if changed:
+                self._sync_view()
 
     def _sync_view(self) -> None:
         snapshot = self.controller.snapshot()
@@ -441,7 +442,7 @@ class LogViewerApp(App[None]):
         )
 
     def action_reload_file(self) -> None:
-        self.controller.reload_current_file()
+        self.controller.reload_current_file(force=True)
         self._sync_view()
 
     def action_toggle_follow(self) -> None:

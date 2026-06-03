@@ -27,4 +27,5 @@ As an engineer reading a live log, I want to move down to an interesting line an
 - Background refresh never snaps the selection back to the first row unless only one row remains.
 - Arrow-key navigation updates the domain state used by follow refresh.
 - Pause and resume follow mode are test-covered, including file growth while paused.
-
+- Follow polling does nothing when the file has not changed on disk.
+- No-op follow polling does not rebuild the table or disturb viewport position.

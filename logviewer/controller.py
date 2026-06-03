@@ -37,7 +37,29 @@ class ViewerController:
         self.selected_index = 0
         self.active_filter = FilterSpec()
         self.chrome = default_chrome_state()
+        self._current_file_signature: tuple[int, int] | None = None
         self._refresh_filtered_entries()
+
+    def _file_signature(self, path: Path) -> tuple[int, int]:
+        stat = path.stat()
+        return (stat.st_mtime_ns, stat.st_size)
+
+    def _load_file(self, path: str, *, track_recent: bool, force: bool) -> tuple[ViewerSnapshot, bool]:
+        file_path = Path(path)
+        signature = self._file_signature(file_path)
+        normalized_path = str(file_path)
+
+        if not force and self.current_file == normalized_path and self._current_file_signature == signature:
+            return self.snapshot(), False
+
+        self.current_file = normalized_path
+        if track_recent:
+            label = file_path.name or normalized_path
+            self.file_catalog.add_recent(normalized_path, label)
+        self.entries = [parse_nlog_line(line) for line in file_path.read_text().splitlines()]
+        self._current_file_signature = signature
+        self._refresh_filtered_entries()
+        return self.snapshot(), True
 
     def _refresh_filtered_entries(self) -> None:
         self.filtered_entries = apply_filter(self.entries, self.active_filter)
@@ -59,18 +81,19 @@ class ViewerController:
         )
 
     def open_file(self, path: str) -> ViewerSnapshot:
-        file_path = Path(path)
-        self.current_file = str(file_path)
-        label = file_path.name or str(file_path)
-        self.file_catalog.add_recent(str(file_path), label)
-        self.entries = [parse_nlog_line(line) for line in file_path.read_text().splitlines()]
-        self._refresh_filtered_entries()
-        return self.snapshot()
+        snapshot, _changed = self._load_file(path, track_recent=True, force=True)
+        return snapshot
 
-    def reload_current_file(self) -> ViewerSnapshot:
+    def reload_current_file(self, *, force: bool = True) -> ViewerSnapshot:
         if self.current_file is None:
             return self.snapshot()
-        return self.open_file(self.current_file)
+        snapshot, _changed = self._load_file(self.current_file, track_recent=False, force=force)
+        return snapshot
+
+    def poll_current_file(self) -> tuple[ViewerSnapshot, bool]:
+        if self.current_file is None:
+            return self.snapshot(), False
+        return self._load_file(self.current_file, track_recent=False, force=False)
 
     def toggle_favorite_current_file(self) -> None:
         if self.current_file is None:

@@ -175,3 +175,34 @@ async def test_app_shows_empty_state_for_empty_file(tmp_path) -> None:
 
         assert table.row_count == 0
         assert empty_state.display is True
+
+
+@pytest.mark.anyio
+async def test_app_follow_poll_skips_sync_when_file_is_unchanged(tmp_path, monkeypatch) -> None:
+    log_file = tmp_path / "steady.log"
+    log_file.write_text(
+        "\n".join(
+            [
+                "2026-06-03 09:14:27.1234|TRACE|Category1|one",
+                "2026-06-03 09:15:00.0000|INFO|Category2|two",
+            ]
+        )
+    )
+    app = LogViewerApp(initial_path=str(log_file))
+    sync_calls: list[str] = []
+    original_sync = app._sync_view
+
+    def counting_sync() -> None:
+        sync_calls.append("sync")
+        original_sync()
+
+    monkeypatch.setattr(app, "_sync_view", counting_sync)
+
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        initial_calls = len(sync_calls)
+
+        app._refresh_follow_mode()
+        await pilot.pause()
+
+        assert len(sync_calls) == initial_calls
