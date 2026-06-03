@@ -19,6 +19,8 @@ As an engineer investigating a running system, I want to open a log file from a 
 - The app supports selecting from favorite files.
 - The file-open workflow lets the user favorite or unfavorite a candidate without first opening it.
 - A file can be marked or unmarked as a favorite from the file-open workflow.
+- The open workflow exposes favorite management as a compact inline action rather than a second persistent pane.
+- Toggling a favorite in the open workflow updates the candidate list immediately so a daily-use file can be promoted with one action.
 - Follow mode can be enabled as part of opening the file or toggled immediately after opening.
 - The default viewing surface stays focused on log content rather than persistent file-management chrome.
 - The app stores enough metadata to show a human-friendly label for favorite or recent files.
@@ -28,3 +30,4 @@ As an engineer investigating a running system, I want to open a log file from a 
 - Keep file access in a lightweight overlay, palette, or transient drawer instead of a permanent sidebar.
 - Favor keyboard-first access with optional mouse support.
 - Recent and favorite entries should be stable even when the viewer is reopened.
+- The open flow should feel like a launch surface: quick to enter, quick to dismiss, and free of secondary navigation.
