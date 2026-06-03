@@ -304,3 +304,63 @@ async def test_app_filter_modal_uses_beginner_friendly_time_hints(tmp_path) -> N
 
         assert "09:15" in str(modal_copy.content)
         assert "ISO format" not in str(modal_copy.content)
+
+
+@pytest.mark.anyio
+async def test_app_quick_exclude_selected_category_hides_noise_without_opening_filters(tmp_path) -> None:
+    log_file = tmp_path / "app.log"
+    log_file.write_text(
+        "\n".join(
+            [
+                "2026-06-03 09:14:27.1234|INFO|Noise.Category|chatty startup",
+                "2026-06-03 09:15:00.0000|INFO|Core.Category|healthy",
+            ]
+        )
+    )
+
+    app = LogViewerApp(initial_path=str(log_file))
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        await pilot.press("x")
+        await pilot.pause()
+
+        table = app.query_one(DataTable)
+        summary = app.query_one("#summary", Static)
+
+        assert table.row_count == 1
+        assert "cat:-Noise.Category" in str(summary.content)
+
+
+@pytest.mark.anyio
+async def test_app_find_modal_tracks_matches_inside_current_visible_rows(tmp_path) -> None:
+    log_file = tmp_path / "app.log"
+    log_file.write_text(
+        "\n".join(
+            [
+                "2026-06-03 09:14:27.1234|INFO|Category1|timeout while connecting",
+                "2026-06-03 09:15:00.0000|INFO|Category2|healthy",
+                "2026-06-03 09:15:01.0000|ERROR|Category3|timeout while reading reply",
+            ]
+        )
+    )
+
+    app = LogViewerApp(initial_path=str(log_file))
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        await pilot.press("/")
+        await pilot.pause()
+
+        app.screen.query_one("#find-query", Input).value = "timeout"
+        getattr(app.screen, "apply_find")()
+        await pilot.pause()
+
+        table = app.query_one(DataTable)
+        summary = app.query_one("#summary", Static)
+        assert table.cursor_coordinate.row == 0
+        assert "find:timeout 1/2" in str(summary.content)
+
+        await pilot.press("n")
+        await pilot.pause()
+
+        assert table.cursor_coordinate.row == 2
+        assert "find:timeout 2/2" in str(summary.content)
