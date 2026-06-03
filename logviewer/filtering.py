@@ -5,7 +5,7 @@ from collections.abc import Iterable
 from .models import FilterSpec, LogEntry
 
 
-def _contains_text(entry: LogEntry, text_query: str) -> bool:
+def entry_contains_text(entry: LogEntry, text_query: str) -> bool:
     needle = text_query.casefold()
     haystacks = [entry.message, entry.raw]
     if entry.category:
@@ -26,7 +26,7 @@ def matches_filter(entry: LogEntry, filter_spec: FilterSpec) -> bool:
     if filter_spec.exclude_categories and entry.category in filter_spec.exclude_categories:
         return False
 
-    if filter_spec.text_query and not _contains_text(entry, filter_spec.text_query):
+    if filter_spec.text_query and not entry_contains_text(entry, filter_spec.text_query):
         return False
 
     if filter_spec.start_time is not None:

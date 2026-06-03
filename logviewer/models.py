@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import date, datetime
 from enum import Enum
 
 
@@ -58,3 +58,14 @@ class UiChromeState:
     paused: bool = False
     summary_tokens: tuple[str, ...] = ()
 
+
+@dataclass(frozen=True)
+class FindState:
+    query: str | None = None
+    match_count: int = 0
+    active_match_ordinal: int = 0
+
+
+@dataclass(frozen=True)
+class TimeFilterContext:
+    reference_date: date | None = None

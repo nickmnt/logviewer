@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 from pathlib import Path
 
 from textual import on
@@ -11,7 +11,7 @@ from textual.screen import ModalScreen
 from textual.widgets import Button, DataTable, Footer, Header, Input, Label, ListItem, ListView, Static
 
 from .controller import ViewerController
-from .models import FilterSpec, LogLevel, SavedView
+from .models import FilterSpec, LogLevel, SavedView, TimeFilterContext
 
 
 LEVEL_ORDER = [LogLevel.TRACE, LogLevel.DEBUG, LogLevel.INFO, LogLevel.WARN, LogLevel.ERROR, LogLevel.FATAL]
@@ -28,11 +28,24 @@ def _parse_levels(value: str) -> frozenset[LogLevel]:
     return frozenset(levels)
 
 
-def _parse_optional_datetime(value: str) -> datetime | None:
+def _parse_optional_datetime(value: str, *, reference_date: date | None = None) -> datetime | None:
     stripped = value.strip()
     if not stripped:
         return None
-    return datetime.fromisoformat(stripped)
+    try:
+        return datetime.fromisoformat(stripped)
+    except ValueError:
+        if reference_date is None:
+            raise
+
+    for pattern in ("%H:%M", "%H:%M:%S", "%H:%M:%S.%f"):
+        try:
+            parsed_time = datetime.strptime(stripped, pattern).time()
+            return datetime.combine(reference_date, parsed_time)
+        except ValueError:
+            continue
+
+    raise ValueError(f"Invalid datetime value: {value}")
 
 
 class OpenLogScreen(ModalScreen[object]):
@@ -84,14 +97,18 @@ class OpenLogScreen(ModalScreen[object]):
 class FilterScreen(ModalScreen[object]):
     BINDINGS = [Binding("escape", "dismiss(None)", "Close")]
 
-    def __init__(self, filter_spec: FilterSpec) -> None:
+    def __init__(self, filter_spec: FilterSpec, time_context: TimeFilterContext | None = None) -> None:
         super().__init__()
         self.filter_spec = filter_spec
+        self.time_context = time_context or TimeFilterContext()
 
     def compose(self) -> ComposeResult:
         with Container(id="modal"):
             yield Label("Filters", id="modal-title")
-            yield Static("Leave fields blank to keep them open. Datetimes use ISO format.", classes="modal-copy")
+            yield Static(
+                "Leave fields blank to keep them open. Time examples: 09:15, 09:15:30, or 2026-06-03 09:15.",
+                classes="modal-copy",
+            )
             with Horizontal(classes="field-row"):
                 yield Input(
                     value=",".join(level.value for level in sorted(self.filter_spec.include_levels, key=lambda item: item.value)),
@@ -118,12 +135,12 @@ class FilterScreen(ModalScreen[object]):
             with Horizontal(classes="field-row"):
                 yield Input(
                     value=self.filter_spec.start_time.isoformat(sep=' ') if self.filter_spec.start_time else "",
-                    placeholder="Start time",
+                    placeholder="Start time, e.g. 09:15",
                     id="start-time",
                 )
                 yield Input(
                     value=self.filter_spec.end_time.isoformat(sep=' ') if self.filter_spec.end_time else "",
-                    placeholder="End time",
+                    placeholder="End time, e.g. 09:30",
                     id="end-time",
                 )
             with Horizontal(classes="button-row"):
@@ -138,8 +155,14 @@ class FilterScreen(ModalScreen[object]):
             include_categories=_parse_csv_values(self.query_one("#include-categories", Input).value),
             exclude_categories=_parse_csv_values(self.query_one("#exclude-categories", Input).value),
             text_query=self.query_one("#text-query", Input).value.strip() or None,
-            start_time=_parse_optional_datetime(self.query_one("#start-time", Input).value),
-            end_time=_parse_optional_datetime(self.query_one("#end-time", Input).value),
+            start_time=_parse_optional_datetime(
+                self.query_one("#start-time", Input).value,
+                reference_date=self.time_context.reference_date,
+            ),
+            end_time=_parse_optional_datetime(
+                self.query_one("#end-time", Input).value,
+                reference_date=self.time_context.reference_date,
+            ),
         )
 
     @on(Button.Pressed, "#apply-filter")
@@ -207,6 +230,36 @@ class SavedViewsScreen(ModalScreen[object]):
 
     @on(Button.Pressed, "#close-views")
     def close_views(self) -> None:
+        self.dismiss(None)
+
+
+class FindScreen(ModalScreen[object]):
+    BINDINGS = [Binding("escape", "dismiss(None)", "Close")]
+
+    def __init__(self, initial_query: str | None) -> None:
+        super().__init__()
+        self.initial_query = initial_query or ""
+
+    def compose(self) -> ComposeResult:
+        with Container(id="modal"):
+            yield Label("Find", id="modal-title")
+            yield Static("Search within the current visible rows. Use n / N to jump between matches.", classes="modal-copy")
+            yield Input(value=self.initial_query, placeholder="Find text", id="find-query")
+            with Horizontal(classes="button-row"):
+                yield Button("Find", variant="primary", id="apply-find")
+                yield Button("Clear", id="clear-find")
+                yield Button("Cancel", id="cancel-find")
+
+    @on(Button.Pressed, "#apply-find")
+    def apply_find(self) -> None:
+        self.dismiss(("find", self.query_one("#find-query", Input).value.strip()))
+
+    @on(Button.Pressed, "#clear-find")
+    def clear_find(self) -> None:
+        self.dismiss(("clear", None))
+
+    @on(Button.Pressed, "#cancel-find")
+    def cancel_find(self) -> None:
         self.dismiss(None)
 
 
@@ -308,11 +361,16 @@ class LogViewerApp(App[None]):
         Binding("q", "quit", "Quit", priority=True),
         Binding("o", "open_file", "Open", priority=True),
         Binding("f", "edit_filters", "Filters", priority=True),
+        Binding("/", "find", "Find", priority=True),
         Binding("v", "saved_views", "Views", priority=True),
         Binding("r", "reload_file", "Reload", priority=True),
         Binding("space", "toggle_follow", "Pause Follow", priority=True),
         Binding("enter", "toggle_detail", "Details", priority=True),
         Binding("star", "toggle_favorite", "Favorite", priority=True),
+        Binding("e", "exclude_level", "Hide Level", priority=True),
+        Binding("x", "exclude_category", "Hide Category", priority=True),
+        Binding("n", "find_next", "Next Match", priority=True),
+        Binding("N", "find_previous", "Prev Match", priority=True),
         Binding("j", "move_down", "Down", show=False),
         Binding("k", "move_up", "Up", show=False),
     ]
@@ -399,6 +457,10 @@ class LogViewerApp(App[None]):
         tokens = list(snapshot.chrome.summary_tokens)
         if snapshot.active_view:
             tokens.insert(0, f"view:{snapshot.active_view.name}")
+        if snapshot.find_state.query:
+            tokens.append(
+                f"find:{snapshot.find_state.query} {snapshot.find_state.active_match_ordinal}/{snapshot.find_state.match_count}"
+            )
         token_text = " | ".join(tokens) if tokens else "no filters"
         return f"{file_name}{favorite_marker} | {count} | {state} | {token_text}"
 
@@ -425,6 +487,17 @@ class LogViewerApp(App[None]):
             self.controller.saved_views.disable(name)
         self._sync_view()
 
+    def _handle_find_result(self, result: object) -> None:
+        if not isinstance(result, tuple) or len(result) != 2:
+            return
+
+        action, query = result
+        if action == "find" and isinstance(query, str):
+            self.controller.start_find(query)
+        elif action == "clear":
+            self.controller.clear_find()
+        self._sync_view()
+
     def action_open_file(self) -> None:
         candidates = [
             (record.path, record.label, record.is_favorite)
@@ -433,7 +506,19 @@ class LogViewerApp(App[None]):
         self.push_screen(OpenLogScreen(candidates), self._handle_open_result)
 
     def action_edit_filters(self) -> None:
-        self.push_screen(FilterScreen(self.controller.active_filter), self._handle_filter_result)
+        self.push_screen(
+            FilterScreen(
+                self.controller.active_filter,
+                self.controller.time_filter_context(),
+            ),
+            self._handle_filter_result,
+        )
+
+    def action_find(self) -> None:
+        self.push_screen(
+            FindScreen(self.controller.snapshot().find_state.query),
+            self._handle_find_result,
+        )
 
     def action_saved_views(self) -> None:
         self.push_screen(
@@ -455,6 +540,22 @@ class LogViewerApp(App[None]):
 
     def action_toggle_favorite(self) -> None:
         self.controller.toggle_favorite_current_file()
+        self._sync_view()
+
+    def action_exclude_level(self) -> None:
+        self.controller.toggle_excluded_selected_level()
+        self._sync_view()
+
+    def action_exclude_category(self) -> None:
+        self.controller.exclude_selected_category()
+        self._sync_view()
+
+    def action_find_next(self) -> None:
+        self.controller.find_next()
+        self._sync_view()
+
+    def action_find_previous(self) -> None:
+        self.controller.find_previous()
         self._sync_view()
 
     def action_move_down(self) -> None:

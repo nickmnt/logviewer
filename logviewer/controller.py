@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, replace
+from datetime import date
 from pathlib import Path
 
 from .catalog import FileCatalog
 from .chrome import close_overlay, default_chrome_state, open_overlay, pause_follow, summarize_filters, toggle_detail
-from .filtering import apply_filter
-from .models import FilterSpec, LogEntry, SavedView, UiChromeState
+from .filtering import apply_filter, entry_contains_text
+from .models import FilterSpec, FindState, LogEntry, LogLevel, SavedView, TimeFilterContext, UiChromeState
 from .parsing import parse_nlog_line
 from .paths import favorites_path, saved_views_path
 from .saved_views import SavedViewStore
@@ -21,6 +22,7 @@ class ViewerSnapshot:
     chrome: UiChromeState
     active_filter: FilterSpec
     active_view: SavedView | None
+    find_state: FindState
 
 
 class ViewerController:
@@ -38,6 +40,9 @@ class ViewerController:
         self.active_filter = FilterSpec()
         self.chrome = default_chrome_state()
         self._current_file_signature: tuple[int, int] | None = None
+        self._find_query: str | None = None
+        self._find_matches: list[int] = []
+        self._active_find_match = 0
         self._refresh_filtered_entries()
 
     def _file_signature(self, path: Path) -> tuple[int, int]:
@@ -67,7 +72,53 @@ class ViewerController:
             self.selected_index = min(self.selected_index, len(self.filtered_entries) - 1)
         else:
             self.selected_index = 0
+        self._refresh_find_matches()
         self.chrome = replace(self.chrome, summary_tokens=summarize_filters(self.active_filter))
+
+    def _refresh_find_matches(self) -> None:
+        if not self._find_query:
+            self._find_matches = []
+            self._active_find_match = 0
+            return
+
+        current_match_index = None
+        if 0 <= self._active_find_match - 1 < len(self._find_matches):
+            current_match_index = self._find_matches[self._active_find_match - 1]
+
+        self._find_matches = [
+            index
+            for index, entry in enumerate(self.filtered_entries)
+            if entry_contains_text(entry, self._find_query)
+        ]
+
+        if not self._find_matches:
+            self._active_find_match = 0
+            return
+
+        if current_match_index in self._find_matches:
+            self._active_find_match = self._find_matches.index(current_match_index) + 1
+            self.selected_index = current_match_index
+            return
+
+        next_match_index = next(
+            (index for index, match_index in enumerate(self._find_matches) if match_index >= self.selected_index),
+            0,
+        )
+        self._active_find_match = next_match_index + 1
+        self.selected_index = self._find_matches[next_match_index]
+
+    def _with_updated_filter(self, *, exclude_levels: frozenset[LogLevel] | None = None, exclude_categories: frozenset[str] | None = None) -> ViewerSnapshot:
+        self.active_filter = FilterSpec(
+            include_levels=self.active_filter.include_levels,
+            exclude_levels=exclude_levels if exclude_levels is not None else self.active_filter.exclude_levels,
+            include_categories=self.active_filter.include_categories,
+            exclude_categories=exclude_categories if exclude_categories is not None else self.active_filter.exclude_categories,
+            text_query=self.active_filter.text_query,
+            start_time=self.active_filter.start_time,
+            end_time=self.active_filter.end_time,
+        )
+        self._refresh_filtered_entries()
+        return self.snapshot()
 
     def snapshot(self) -> ViewerSnapshot:
         return ViewerSnapshot(
@@ -78,6 +129,11 @@ class ViewerController:
             chrome=self.chrome,
             active_filter=self.active_filter,
             active_view=self.saved_views.active_view(),
+            find_state=FindState(
+                query=self._find_query,
+                match_count=len(self._find_matches),
+                active_match_ordinal=self._active_find_match,
+            ),
         )
 
     def open_file(self, path: str) -> ViewerSnapshot:
@@ -105,6 +161,28 @@ class ViewerController:
         self.active_filter = filter_spec
         self._refresh_filtered_entries()
         return self.snapshot()
+
+    def toggle_excluded_level(self, level: LogLevel) -> ViewerSnapshot:
+        exclude_levels = set(self.active_filter.exclude_levels)
+        if level in exclude_levels:
+            exclude_levels.remove(level)
+        else:
+            exclude_levels.add(level)
+        return self._with_updated_filter(exclude_levels=frozenset(exclude_levels))
+
+    def toggle_excluded_category(self, category: str) -> ViewerSnapshot:
+        exclude_categories = set(self.active_filter.exclude_categories)
+        if category in exclude_categories:
+            exclude_categories.remove(category)
+        else:
+            exclude_categories.add(category)
+        return self._with_updated_filter(exclude_categories=frozenset(exclude_categories))
+
+    def exclude_selected_category(self) -> ViewerSnapshot:
+        entry = self.selected_entry()
+        if entry is None or not entry.category:
+            return self.snapshot()
+        return self.toggle_excluded_category(entry.category)
 
     def save_view(self, name: str) -> SavedView:
         return self.saved_views.save(name, self.active_filter)
@@ -147,3 +225,46 @@ class ViewerController:
         if not self.filtered_entries:
             return None
         return self.filtered_entries[self.selected_index]
+
+    def toggle_excluded_selected_level(self) -> ViewerSnapshot:
+        entry = self.selected_entry()
+        if entry is None or entry.level is None:
+            return self.snapshot()
+        return self.toggle_excluded_level(entry.level)
+
+    def start_find(self, query: str) -> ViewerSnapshot:
+        self._find_query = query.strip() or None
+        self._refresh_find_matches()
+        return self.snapshot()
+
+    def clear_find(self) -> ViewerSnapshot:
+        self._find_query = None
+        self._refresh_find_matches()
+        return self.snapshot()
+
+    def _move_find(self, step: int) -> ViewerSnapshot:
+        if not self._find_matches:
+            return self.snapshot()
+
+        if self._active_find_match <= 0:
+            self._active_find_match = 1
+        else:
+            self._active_find_match = ((self._active_find_match - 1 + step) % len(self._find_matches)) + 1
+        self.selected_index = self._find_matches[self._active_find_match - 1]
+        return self.snapshot()
+
+    def find_next(self) -> ViewerSnapshot:
+        return self._move_find(1)
+
+    def find_previous(self) -> ViewerSnapshot:
+        return self._move_find(-1)
+
+    def time_filter_context(self) -> TimeFilterContext:
+        selected = self.selected_entry()
+        if selected and selected.timestamp:
+            return TimeFilterContext(reference_date=selected.timestamp.date())
+
+        for entry in self.entries:
+            if entry.timestamp:
+                return TimeFilterContext(reference_date=entry.timestamp.date())
+        return TimeFilterContext(reference_date=None)
