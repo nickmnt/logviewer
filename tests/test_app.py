@@ -255,3 +255,52 @@ async def test_app_j_and_k_navigation_avoid_full_view_sync(tmp_path, monkeypatch
 
         assert table.cursor_coordinate.row == 0
         assert len(sync_calls) == initial_calls
+
+
+@pytest.mark.anyio
+async def test_app_filter_modal_accepts_hh_mm_time_inputs_for_same_day_logs(tmp_path) -> None:
+    log_file = tmp_path / "app.log"
+    log_file.write_text(
+        "\n".join(
+            [
+                "2026-06-03 09:14:27.1234|TRACE|Category1|Before",
+                "2026-06-03 09:15:00.0000|INFO|Category1|InsideStart",
+                "2026-06-03 09:30:00.0000|ERROR|Category2|InsideEnd",
+                "2026-06-03 09:30:00.0001|ERROR|Category2|After",
+            ]
+        )
+    )
+
+    app = LogViewerApp(initial_path=str(log_file))
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        await pilot.press("f")
+        query = app.screen.query_one("#start-time", Input)
+        query.value = "09:15"
+        app.screen.query_one("#end-time", Input).value = "09:30"
+        getattr(app.screen, "apply_filter")()
+        await pilot.pause()
+
+        table = app.query_one(DataTable)
+        summary = app.query_one("#summary", Static)
+
+        assert table.row_count == 2
+        assert "from:2026-06-03 09:15:00" in summary.content
+        assert "to:2026-06-03 09:30:00" in summary.content
+
+
+@pytest.mark.anyio
+async def test_app_filter_modal_uses_beginner_friendly_time_hints(tmp_path) -> None:
+    log_file = tmp_path / "app.log"
+    log_file.write_text("2026-06-03 09:14:27.1234|TRACE|Category1|one")
+
+    app = LogViewerApp(initial_path=str(log_file))
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        await pilot.press("f")
+        await pilot.pause()
+
+        modal_copy = app.screen.query_one(".modal-copy", Static)
+
+        assert "09:15" in str(modal_copy.content)
+        assert "ISO format" not in str(modal_copy.content)

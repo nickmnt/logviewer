@@ -139,3 +139,84 @@ def test_controller_poll_current_file_reports_unchanged_without_reloading(tmp_pa
     assert changed is False
     assert snapshot.total_entries == 1
     assert snapshot.selected_index == 0
+
+
+def test_controller_can_quick_toggle_excluded_level_for_noise_reduction(tmp_path) -> None:
+    log_file = tmp_path / "app.log"
+    log_file.write_text(
+        "\n".join(
+            [
+                "2026-06-03 09:14:27.1234|TRACE|Category1|trace noise",
+                "2026-06-03 09:15:00.0000|ERROR|Category2|real problem",
+            ]
+        )
+    )
+    controller = ViewerController()
+    controller.open_file(str(log_file))
+
+    snapshot = controller.toggle_excluded_level(LogLevel.TRACE)
+
+    assert snapshot.active_filter.exclude_levels == frozenset({LogLevel.TRACE})
+    assert [entry.message for entry in snapshot.visible_entries] == ["real problem"]
+    assert "lvl:-TRACE" in snapshot.chrome.summary_tokens
+
+    snapshot = controller.toggle_excluded_level(LogLevel.TRACE)
+
+    assert snapshot.active_filter.exclude_levels == frozenset()
+    assert [entry.message for entry in snapshot.visible_entries] == ["trace noise", "real problem"]
+
+
+def test_controller_can_exclude_selected_category_without_opening_full_filter_editor(tmp_path) -> None:
+    log_file = tmp_path / "app.log"
+    log_file.write_text(
+        "\n".join(
+            [
+                "2026-06-03 09:14:27.1234|INFO|Noise.Category|chatty startup",
+                "2026-06-03 09:15:00.0000|INFO|Core.Category|healthy",
+                "2026-06-03 09:15:01.0000|WARN|Noise.Category|chatty heartbeat",
+            ]
+        )
+    )
+    controller = ViewerController()
+    controller.open_file(str(log_file))
+
+    snapshot = controller.exclude_selected_category()
+
+    assert snapshot.active_filter.exclude_categories == frozenset({"Noise.Category"})
+    assert [entry.message for entry in snapshot.visible_entries] == ["healthy"]
+    assert "cat:-Noise.Category" in snapshot.chrome.summary_tokens
+
+
+def test_controller_find_moves_between_matches_without_overwriting_filters(tmp_path) -> None:
+    log_file = tmp_path / "app.log"
+    log_file.write_text(
+        "\n".join(
+            [
+                "2026-06-03 09:14:27.1234|INFO|Category1|timeout while connecting",
+                "2026-06-03 09:15:00.0000|INFO|Category2|healthy",
+                "2026-06-03 09:15:01.0000|ERROR|Category3|timeout while reading reply",
+            ]
+        )
+    )
+    controller = ViewerController()
+    controller.open_file(str(log_file))
+    controller.apply_filter_spec(
+        FilterSpec(exclude_categories=frozenset({"Category2"})),
+    )
+
+    snapshot = controller.start_find("timeout")
+
+    assert snapshot.active_filter.exclude_categories == frozenset({"Category2"})
+    assert snapshot.selected_index == 0
+    assert controller.selected_entry() is not None
+    assert controller.selected_entry().message == "timeout while connecting"
+
+    snapshot = controller.find_next()
+
+    assert snapshot.selected_index == 1
+    assert controller.selected_entry() is not None
+    assert controller.selected_entry().message == "timeout while reading reply"
+
+    snapshot = controller.find_previous()
+
+    assert snapshot.selected_index == 0
