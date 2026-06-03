@@ -324,7 +324,7 @@ class LogViewerApp(App[None]):
         self.follow_interval = 1.0
 
     def compose(self) -> ComposeResult:
-        yield Header(show_clock=True)
+        yield Header(show_clock=False)
         with Vertical(id="body"):
             yield Static("No file loaded. Press o to open a log file.", id="summary")
             with Container(id="table-wrap"):
@@ -458,9 +458,7 @@ class LogViewerApp(App[None]):
         self._sync_view()
 
     def action_move_down(self) -> None:
-        self.controller.move_selection(1)
-        self._sync_view()
+        self.query_one(DataTable).action_cursor_down()
 
     def action_move_up(self) -> None:
-        self.controller.move_selection(-1)
-        self._sync_view()
+        self.query_one(DataTable).action_cursor_up()

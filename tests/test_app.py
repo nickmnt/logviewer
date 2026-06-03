@@ -1,5 +1,5 @@
 import pytest
-from textual.widgets import DataTable, Input, ListView, Static
+from textual.widgets import DataTable, Header, Input, ListView, Static
 
 from logviewer.app import LogViewerApp
 
@@ -178,6 +178,19 @@ async def test_app_shows_empty_state_for_empty_file(tmp_path) -> None:
 
 
 @pytest.mark.anyio
+async def test_app_disables_live_clock_to_reduce_idle_repaints(tmp_path) -> None:
+    log_file = tmp_path / "steady.log"
+    log_file.write_text("2026-06-03 09:14:27.1234|TRACE|Category1|one")
+
+    app = LogViewerApp(initial_path=str(log_file))
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        header = app.query_one(Header)
+
+        assert header._show_clock is False
+
+
+@pytest.mark.anyio
 async def test_app_follow_poll_skips_sync_when_file_is_unchanged(tmp_path, monkeypatch) -> None:
     log_file = tmp_path / "steady.log"
     log_file.write_text(
@@ -205,4 +218,40 @@ async def test_app_follow_poll_skips_sync_when_file_is_unchanged(tmp_path, monke
         app._refresh_follow_mode()
         await pilot.pause()
 
+        assert len(sync_calls) == initial_calls
+
+
+@pytest.mark.anyio
+async def test_app_j_and_k_navigation_avoid_full_view_sync(tmp_path, monkeypatch) -> None:
+    log_file = tmp_path / "nav.log"
+    log_file.write_text(
+        "\n".join(
+            [
+                "2026-06-03 09:14:27.1234|TRACE|Category1|one",
+                "2026-06-03 09:15:00.0000|INFO|Category2|two",
+                "2026-06-03 09:15:01.0000|WARN|Category3|three",
+            ]
+        )
+    )
+    app = LogViewerApp(initial_path=str(log_file))
+    sync_calls: list[str] = []
+    original_sync = app._sync_view
+
+    def counting_sync() -> None:
+        sync_calls.append("sync")
+        original_sync()
+
+    monkeypatch.setattr(app, "_sync_view", counting_sync)
+
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        table = app.query_one(DataTable)
+        initial_calls = len(sync_calls)
+
+        await pilot.press("j")
+        await pilot.pause()
+        await pilot.press("k")
+        await pilot.pause()
+
+        assert table.cursor_coordinate.row == 0
         assert len(sync_calls) == initial_calls
