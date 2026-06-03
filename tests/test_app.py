@@ -73,6 +73,74 @@ async def test_app_toggles_detail_pane_for_selected_log(tmp_path) -> None:
 
 
 @pytest.mark.anyio
+async def test_app_detail_toggle_preserves_scroll_anchor_in_small_viewport(tmp_path) -> None:
+    log_file = tmp_path / "app.log"
+    log_file.write_text(
+        "\n".join(
+            [
+                f"2026-06-03 09:14:{index:02d}.0000|INFO|Category{index}|message {index}"
+                for index in range(30)
+            ]
+        )
+    )
+
+    app = LogViewerApp(initial_path=str(log_file))
+    async with app.run_test(size=(100, 12)) as pilot:
+        await pilot.pause()
+        table = app.query_one(DataTable)
+
+        for _ in range(12):
+            await pilot.press("down")
+            await pilot.pause()
+
+        before_cursor_row = table.cursor_coordinate.row
+        before_scroll_y = table.scroll_y
+        before_height = table.scrollable_content_region.height
+
+        await pilot.press("enter")
+        await pilot.pause()
+
+        detail = app.query_one("#detail", Static)
+
+        assert detail.display is True
+        assert table.cursor_coordinate.row == before_cursor_row
+        assert table.scroll_y == before_scroll_y
+        assert table.scrollable_content_region.height == before_height
+
+
+@pytest.mark.anyio
+async def test_app_detail_toggle_does_not_force_full_view_sync(tmp_path, monkeypatch) -> None:
+    log_file = tmp_path / "app.log"
+    log_file.write_text(
+        "\n".join(
+            [
+                "2026-06-03 09:14:27.1234|TRACE|Category1|one",
+                "2026-06-03 09:15:00.0000|ERROR|Category2|two",
+            ]
+        )
+    )
+
+    app = LogViewerApp(initial_path=str(log_file))
+    sync_calls: list[str] = []
+    original_sync = app._sync_view
+
+    def counting_sync() -> None:
+        sync_calls.append("sync")
+        original_sync()
+
+    monkeypatch.setattr(app, "_sync_view", counting_sync)
+
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        initial_calls = len(sync_calls)
+
+        await pilot.press("enter")
+        await pilot.pause()
+
+        assert len(sync_calls) == initial_calls
+
+
+@pytest.mark.anyio
 async def test_app_open_modal_prefills_selected_recent_path(tmp_path) -> None:
     first = tmp_path / "first.log"
     second = tmp_path / "second.log"

@@ -10,7 +10,7 @@ from textual.containers import Container, Horizontal, Vertical
 from textual.screen import ModalScreen
 from textual.widgets import Button, DataTable, Footer, Header, Input, Label, ListItem, ListView, Static
 
-from .controller import ViewerController
+from .controller import ViewerController, ViewerSnapshot
 from .models import FilterSpec, LogLevel, SavedView, TimeFilterContext
 
 
@@ -293,12 +293,16 @@ class LogViewerApp(App[None]):
     }
 
     #table-wrap {
+        layout: vertical;
         height: 1fr;
         background: #0f1620;
         border: round #26445c;
     }
 
     #detail {
+        layer: overlay;
+        dock: bottom;
+        width: 1fr;
         height: 6;
         border-top: solid #26445c;
         padding: 0 1;
@@ -391,7 +395,7 @@ class LogViewerApp(App[None]):
                     "Open a log file with o. Then use f for filters, v for saved views, Enter for details, and Space to pause follow mode.",
                     id="empty-state",
                 )
-            yield Static("", id="detail")
+                yield Static("", id="detail")
         yield Footer()
 
     def on_mount(self) -> None:
@@ -422,6 +426,11 @@ class LogViewerApp(App[None]):
 
     def _sync_view(self) -> None:
         snapshot = self.controller.snapshot()
+        self._sync_table(snapshot)
+        self._sync_detail(snapshot)
+        self._sync_summary()
+
+    def _sync_table(self, snapshot: ViewerSnapshot) -> None:
         table = self.query_one(DataTable)
         table.clear()
         for entry in snapshot.visible_entries:
@@ -434,13 +443,16 @@ class LogViewerApp(App[None]):
         empty_state = self.query_one("#empty-state", Static)
         empty_state.display = not snapshot.visible_entries
         if snapshot.visible_entries:
-            table.cursor_coordinate = (snapshot.selected_index, 0)
+            table.move_cursor(row=snapshot.selected_index, column=0, animate=False)
 
+    def _sync_detail(self, snapshot: ViewerSnapshot | None = None) -> None:
+        snapshot = snapshot or self.controller.snapshot()
         detail = self.query_one("#detail", Static)
         selected = self.controller.selected_entry()
         detail.update(selected.raw if selected else "No entry selected.")
         detail.display = snapshot.chrome.detail_visible
 
+    def _sync_summary(self) -> None:
         self.query_one("#summary", Static).update(self._build_summary_text())
 
     def _build_summary_text(self) -> str:
@@ -532,15 +544,15 @@ class LogViewerApp(App[None]):
 
     def action_toggle_follow(self) -> None:
         self.controller.toggle_follow_pause()
-        self._sync_view()
+        self._sync_summary()
 
     def action_toggle_detail(self) -> None:
-        self.controller.toggle_detail()
-        self._sync_view()
+        snapshot = self.controller.toggle_detail()
+        self._sync_detail(snapshot)
 
     def action_toggle_favorite(self) -> None:
         self.controller.toggle_favorite_current_file()
-        self._sync_view()
+        self._sync_summary()
 
     def action_exclude_level(self) -> None:
         self.controller.toggle_excluded_selected_level()
