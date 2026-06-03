@@ -1,8 +1,9 @@
 from __future__ import annotations
 
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from pathlib import Path
 
+from textual import events
 from textual import on
 from textual.app import App, ComposeResult
 from textual.binding import Binding
@@ -72,7 +73,15 @@ class OpenLogScreen(ModalScreen[object]):
             )
             with Horizontal(classes="button-row"):
                 yield Button("Open", variant="primary", id="confirm-open")
+                yield Button("Toggle favorite", id="toggle-open-favorite")
                 yield Button("Cancel", id="cancel-open")
+
+    def selected_candidate(self) -> tuple[str, str, bool] | None:
+        selected = self.query_one("#open-candidates", ListView).highlighted_child
+        if selected is None or selected.id is None:
+            return None
+        index = int(selected.id.rsplit("-", 1)[1])
+        return self.candidates[index]
 
     @on(ListView.Selected, "#open-candidates")
     def handle_candidate_selected(self, event: ListView.Selected) -> None:
@@ -88,6 +97,14 @@ class OpenLogScreen(ModalScreen[object]):
     @on(Button.Pressed, "#confirm-open")
     def confirm_open(self) -> None:
         self.dismiss(self.query_one("#open-path", Input).value.strip() or None)
+
+    @on(Button.Pressed, "#toggle-open-favorite")
+    def toggle_favorite_candidate(self) -> None:
+        selected = self.selected_candidate()
+        if selected is None:
+            return
+        path, label, _is_favorite = selected
+        self.dismiss(("favorite", path, label))
 
     @on(Button.Pressed, "#cancel-open")
     def cancel_open(self) -> None:
@@ -144,6 +161,10 @@ class FilterScreen(ModalScreen[object]):
                     id="end-time",
                 )
             with Horizontal(classes="button-row"):
+                yield Button("Last 5m", id="preset-last-5m")
+                yield Button("Last 15m", id="preset-last-15m")
+                yield Button("This hour", id="preset-this-hour")
+            with Horizontal(classes="button-row"):
                 yield Button("Apply", variant="primary", id="apply-filter")
                 yield Button("Clear", id="clear-filter")
                 yield Button("Cancel", id="cancel-filter")
@@ -163,6 +184,56 @@ class FilterScreen(ModalScreen[object]):
                 self.query_one("#end-time", Input).value,
                 reference_date=self.time_context.reference_date,
             ),
+        )
+
+    def _build_non_time_filter_spec(self) -> FilterSpec:
+        return FilterSpec(
+            include_levels=_parse_levels(self.query_one("#include-levels", Input).value),
+            exclude_levels=_parse_levels(self.query_one("#exclude-levels", Input).value),
+            include_categories=_parse_csv_values(self.query_one("#include-categories", Input).value),
+            exclude_categories=_parse_csv_values(self.query_one("#exclude-categories", Input).value),
+            text_query=self.query_one("#text-query", Input).value.strip() or None,
+        )
+
+    def _build_preset_filter_spec(self, *, start_time: datetime, end_time: datetime) -> FilterSpec:
+        base_filter = self._build_non_time_filter_spec()
+        return FilterSpec(
+            include_levels=base_filter.include_levels,
+            exclude_levels=base_filter.exclude_levels,
+            include_categories=base_filter.include_categories,
+            exclude_categories=base_filter.exclude_categories,
+            text_query=base_filter.text_query,
+            start_time=start_time,
+            end_time=end_time,
+        )
+
+    def _preset_anchor(self) -> datetime | None:
+        return self.time_context.latest_timestamp
+
+    @on(Button.Pressed, "#preset-last-5m")
+    def apply_last_5_minutes(self) -> None:
+        anchor = self._preset_anchor()
+        if anchor is None:
+            return
+        self.dismiss(self._build_preset_filter_spec(start_time=anchor - timedelta(minutes=5), end_time=anchor))
+
+    @on(Button.Pressed, "#preset-last-15m")
+    def apply_last_15_minutes(self) -> None:
+        anchor = self._preset_anchor()
+        if anchor is None:
+            return
+        self.dismiss(self._build_preset_filter_spec(start_time=anchor - timedelta(minutes=15), end_time=anchor))
+
+    @on(Button.Pressed, "#preset-this-hour")
+    def apply_this_hour(self) -> None:
+        anchor = self._preset_anchor()
+        if anchor is None:
+            return
+        self.dismiss(
+            self._build_preset_filter_spec(
+                start_time=anchor.replace(minute=0, second=0, microsecond=0),
+                end_time=anchor,
+            )
         )
 
     @on(Button.Pressed, "#apply-filter")
@@ -261,6 +332,12 @@ class FindScreen(ModalScreen[object]):
     @on(Button.Pressed, "#cancel-find")
     def cancel_find(self) -> None:
         self.dismiss(None)
+
+
+class LogTable(DataTable):
+    def _on_mouse_move(self, event: events.MouseMove) -> None:
+        # Hover-only row repainting is expensive on dense log tables and doesn't add much value.
+        return
 
 
 class LogViewerApp(App[None]):
@@ -390,7 +467,7 @@ class LogViewerApp(App[None]):
         with Vertical(id="body"):
             yield Static("No file loaded. Press o to open a log file.", id="summary")
             with Container(id="table-wrap"):
-                yield DataTable(id="log-table")
+                yield LogTable(id="log-table")
                 yield Static(
                     "Open a log file with o. Then use f for filters, v for saved views, Enter for details, and Space to pause follow mode.",
                     id="empty-state",
@@ -433,12 +510,17 @@ class LogViewerApp(App[None]):
     def _sync_table(self, snapshot: ViewerSnapshot) -> None:
         table = self.query_one(DataTable)
         table.clear()
-        for entry in snapshot.visible_entries:
-            timestamp = entry.timestamp.strftime("%Y-%m-%d %H:%M:%S.%f")[:-2] if entry.timestamp else ""
-            level = entry.level.value if entry.level else "RAW"
-            category = entry.category or ""
-            message = entry.message
-            table.add_row(timestamp, level, category, message)
+        table.add_rows(
+            [
+                (
+                    entry.timestamp.strftime("%Y-%m-%d %H:%M:%S.%f")[:-2] if entry.timestamp else "",
+                    entry.level.value if entry.level else "RAW",
+                    entry.category or "",
+                    entry.message,
+                )
+                for entry in snapshot.visible_entries
+            ]
+        )
 
         empty_state = self.query_one("#empty-state", Static)
         empty_state.display = not snapshot.visible_entries
@@ -480,6 +562,12 @@ class LogViewerApp(App[None]):
         if isinstance(path, str) and path:
             self.controller.open_file(path)
             self._sync_view()
+        elif isinstance(path, tuple) and len(path) == 3 and path[0] == "favorite":
+            _action, candidate_path, label = path
+            if isinstance(candidate_path, str) and isinstance(label, str):
+                self.controller.file_catalog.toggle_favorite(candidate_path, label)
+                self._sync_summary()
+                self.action_open_file()
 
     def _handle_filter_result(self, filter_spec: object) -> None:
         if isinstance(filter_spec, FilterSpec):

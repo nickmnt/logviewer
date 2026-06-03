@@ -1,7 +1,10 @@
+import asyncio
+
 import pytest
+from textual.coordinate import Coordinate
 from textual.widgets import DataTable, Header, Input, ListView, Static
 
-from logviewer.app import LogViewerApp
+from logviewer.app import LogTable, LogViewerApp
 
 
 @pytest.mark.anyio
@@ -168,6 +171,69 @@ async def test_app_open_modal_prefills_selected_recent_path(tmp_path) -> None:
 
 
 @pytest.mark.anyio
+async def test_app_open_modal_can_toggle_favorite_for_candidate_without_opening_it(tmp_path) -> None:
+    first = tmp_path / "first.log"
+    second = tmp_path / "second.log"
+    first.write_text("2026-06-03 09:14:27.1234|TRACE|Category1|one")
+    second.write_text("2026-06-03 09:14:27.1234|TRACE|Category1|two")
+
+    app = LogViewerApp(initial_path=str(first))
+    app.controller.file_catalog.add_recent(str(second), second.name)
+
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        await pilot.press("o")
+        await pilot.pause()
+
+        candidate_paths = list(getattr(app.screen, "candidates"))
+        second_index = next(
+            index for index, (path, _label, _is_favorite) in enumerate(candidate_paths) if path == str(second)
+        )
+        candidates = app.screen.query_one("#open-candidates", ListView)
+        candidates.index = second_index
+        candidates.action_select_cursor()
+        await pilot.pause()
+
+        getattr(app.screen, "toggle_favorite_candidate")()
+        await pilot.pause()
+
+        assert app.controller.snapshot().current_file == str(first)
+        updated_candidates = app.controller.file_catalog.open_candidates()
+        assert updated_candidates[0].path == str(second)
+        assert updated_candidates[0].is_favorite is True
+
+
+@pytest.mark.anyio
+async def test_app_filter_modal_can_apply_last_15_minutes_preset_using_log_context(tmp_path) -> None:
+    log_file = tmp_path / "app.log"
+    log_file.write_text(
+        "\n".join(
+            [
+                "2026-06-03 09:00:00.0000|TRACE|Category1|early",
+                "2026-06-03 09:10:00.0000|INFO|Category2|inside",
+                "2026-06-03 09:20:00.0000|ERROR|Category3|latest",
+            ]
+        )
+    )
+
+    app = LogViewerApp(initial_path=str(log_file))
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        await pilot.press("f")
+        await pilot.pause()
+
+        getattr(app.screen, "apply_last_15_minutes")()
+        await pilot.pause()
+
+        table = app.query_one(DataTable)
+        summary = app.query_one("#summary", Static)
+
+        assert table.row_count == 2
+        assert "from:2026-06-03 09:05:00" in summary.content
+        assert "to:2026-06-03 09:20:00" in summary.content
+
+
+@pytest.mark.anyio
 async def test_app_preserves_arrow_key_selection_across_follow_refresh(tmp_path) -> None:
     log_file = tmp_path / "app.log"
     log_file.write_text(
@@ -256,6 +322,23 @@ async def test_app_disables_live_clock_to_reduce_idle_repaints(tmp_path) -> None
         header = app.query_one(Header)
 
         assert header._show_clock is False
+
+
+@pytest.mark.anyio
+async def test_log_table_ignores_mouse_move_hover_updates_to_reduce_pointer_latency() -> None:
+    asyncio.set_event_loop(asyncio.get_running_loop())
+    table = LogTable()
+    table.hover_coordinate = Coordinate(0, 0)
+
+    class DummyStyle:
+        meta = {"row": 5, "column": 1}
+
+    class DummyEvent:
+        style = DummyStyle()
+
+    table._on_mouse_move(DummyEvent())
+
+    assert table.hover_coordinate == Coordinate(0, 0)
 
 
 @pytest.mark.anyio

@@ -260,11 +260,21 @@ class ViewerController:
         return self._move_find(-1)
 
     def time_filter_context(self) -> TimeFilterContext:
+        reference_date = None
         selected = self.selected_entry()
         if selected and selected.timestamp:
-            return TimeFilterContext(reference_date=selected.timestamp.date())
+            reference_date = selected.timestamp.date()
 
+        latest_timestamp = None
         for entry in self.entries:
             if entry.timestamp:
-                return TimeFilterContext(reference_date=entry.timestamp.date())
-        return TimeFilterContext(reference_date=None)
+                if reference_date is None:
+                    reference_date = entry.timestamp.date()
+                latest_timestamp = entry.timestamp
+
+        if latest_timestamp:
+            return TimeFilterContext(
+                reference_date=reference_date,
+                latest_timestamp=latest_timestamp,
+            )
+        return TimeFilterContext(reference_date=None, latest_timestamp=None)

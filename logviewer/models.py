@@ -69,3 +69,4 @@ class FindState:
 @dataclass(frozen=True)
 class TimeFilterContext:
     reference_date: date | None = None
+    latest_timestamp: datetime | None = None

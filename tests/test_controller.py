@@ -1,7 +1,9 @@
 from datetime import datetime
 
+from logviewer.catalog import FileCatalog
 from logviewer.controller import ViewerController
 from logviewer.models import FilterSpec, LogLevel
+from logviewer.saved_views import SavedViewStore
 
 
 def test_controller_opens_file_and_updates_visible_entries(tmp_path) -> None:
@@ -220,3 +222,25 @@ def test_controller_find_moves_between_matches_without_overwriting_filters(tmp_p
     snapshot = controller.find_previous()
 
     assert snapshot.selected_index == 0
+
+
+def test_controller_time_filter_context_uses_latest_log_timestamp_for_presets(tmp_path) -> None:
+    log_file = tmp_path / "app.log"
+    log_file.write_text(
+        "\n".join(
+            [
+                "2026-06-03 09:14:27.1234|INFO|Category1|first",
+                "2026-06-03 09:20:00.0000|ERROR|Category2|latest",
+            ]
+        )
+    )
+    controller = ViewerController(
+        file_catalog=FileCatalog(tmp_path / "favorites.json"),
+        saved_views=SavedViewStore(tmp_path / "views.json"),
+    )
+    controller.open_file(str(log_file))
+
+    context = controller.time_filter_context()
+
+    assert context.reference_date == datetime(2026, 6, 3).date()
+    assert context.latest_timestamp == datetime(2026, 6, 3, 9, 20, 0)
