@@ -313,8 +313,8 @@ class LogViewerApp(App[None]):
         Binding("space", "toggle_follow", "Pause Follow", priority=True),
         Binding("enter", "toggle_detail", "Details", priority=True),
         Binding("star", "toggle_favorite", "Favorite", priority=True),
-        Binding("j,down", "move_down", "Down", show=False),
-        Binding("k,up", "move_up", "Up", show=False),
+        Binding("j", "move_down", "Down", show=False),
+        Binding("k", "move_up", "Up", show=False),
     ]
 
     def __init__(self, initial_path: str | None = None) -> None:
@@ -338,6 +338,7 @@ class LogViewerApp(App[None]):
 
     def on_mount(self) -> None:
         table = self.query_one(DataTable)
+        table.cursor_type = "row"
         table.add_columns("Time", "Level", "Category", "Message")
         detail = self.query_one("#detail", Static)
         detail.display = False
@@ -345,6 +346,14 @@ class LogViewerApp(App[None]):
         if self.initial_path:
             self.controller.open_file(self.initial_path)
             self._sync_view()
+
+    @on(DataTable.RowHighlighted, "#log-table")
+    def sync_table_row_to_controller(self, event: DataTable.RowHighlighted) -> None:
+        self.controller.set_selection(event.cursor_row)
+        detail = self.query_one("#detail", Static)
+        if detail.display:
+            selected = self.controller.selected_entry()
+            detail.update(selected.raw if selected else "No entry selected.")
 
     def _refresh_follow_mode(self) -> None:
         snapshot = self.controller.snapshot()

@@ -25,3 +25,27 @@ def test_parse_nlog_line_keeps_unmatched_lines_viewable_as_raw() -> None:
     assert entry.message == "plain text that does not match the NLog pipe format"
     assert entry.raw == "plain text that does not match the NLog pipe format"
 
+
+def test_parse_nlog_line_normalizes_mixed_case_level() -> None:
+    entry = parse_nlog_line("2026-06-03 09:14:27.1234|error|Category1|boom")
+
+    assert entry.is_parsed is True
+    assert entry.level == LogLevel.ERROR
+    assert entry.message == "boom"
+
+
+def test_parse_nlog_line_allows_extra_pipes_inside_message() -> None:
+    entry = parse_nlog_line("2026-06-03 09:14:27.1234|INFO|Category1|part1|part2|part3")
+
+    assert entry.is_parsed is True
+    assert entry.level == LogLevel.INFO
+    assert entry.message == "part1|part2|part3"
+
+
+def test_parse_nlog_line_falls_back_to_raw_for_invalid_timestamp_with_valid_delimiters() -> None:
+    raw_line = "not-a-time|INFO|Category1|message"
+
+    entry = parse_nlog_line(raw_line)
+
+    assert entry.is_parsed is False
+    assert entry.message == raw_line

@@ -60,3 +60,68 @@ def test_controller_tracks_overlay_detail_and_pause_state() -> None:
     assert snapshot.chrome.active_overlay == "filters"
     assert snapshot.chrome.detail_visible is True
     assert snapshot.chrome.paused is True
+
+
+def test_controller_preserves_selection_on_reload_when_file_grows(tmp_path) -> None:
+    log_file = tmp_path / "app.log"
+    log_file.write_text(
+        "\n".join(
+            [
+                "2026-06-03 09:14:27.1234|TRACE|Category1|one",
+                "2026-06-03 09:15:00.0000|ERROR|Category2|two",
+            ]
+        )
+    )
+    controller = ViewerController()
+    controller.open_file(str(log_file))
+    controller.move_selection(1)
+
+    log_file.write_text(
+        "\n".join(
+            [
+                "2026-06-03 09:14:27.1234|TRACE|Category1|one",
+                "2026-06-03 09:15:00.0000|ERROR|Category2|two",
+                "2026-06-03 09:15:01.0000|INFO|Category3|three",
+            ]
+        )
+    )
+
+    snapshot = controller.reload_current_file()
+
+    assert snapshot.selected_index == 1
+    assert snapshot.visible_entries[1].message == "two"
+
+
+def test_controller_clamps_selection_when_file_shrinks(tmp_path) -> None:
+    log_file = tmp_path / "app.log"
+    log_file.write_text(
+        "\n".join(
+            [
+                "2026-06-03 09:14:27.1234|TRACE|Category1|one",
+                "2026-06-03 09:15:00.0000|ERROR|Category2|two",
+                "2026-06-03 09:15:01.0000|INFO|Category3|three",
+            ]
+        )
+    )
+    controller = ViewerController()
+    controller.open_file(str(log_file))
+    controller.move_selection(2)
+
+    log_file.write_text("2026-06-03 09:14:27.1234|TRACE|Category1|one")
+
+    snapshot = controller.reload_current_file()
+
+    assert snapshot.selected_index == 0
+    assert snapshot.visible_entries[0].message == "one"
+
+
+def test_controller_handles_empty_file_without_selection(tmp_path) -> None:
+    log_file = tmp_path / "empty.log"
+    log_file.write_text("")
+    controller = ViewerController()
+
+    snapshot = controller.open_file(str(log_file))
+
+    assert snapshot.total_entries == 0
+    assert snapshot.visible_entries == ()
+    assert controller.selected_entry() is None

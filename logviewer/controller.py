@@ -113,6 +113,13 @@ class ViewerController:
             self.selected_index = max(0, min(self.selected_index + delta, len(self.filtered_entries) - 1))
         return self.snapshot()
 
+    def set_selection(self, index: int) -> ViewerSnapshot:
+        if self.filtered_entries:
+            self.selected_index = max(0, min(index, len(self.filtered_entries) - 1))
+        else:
+            self.selected_index = 0
+        return self.snapshot()
+
     def selected_entry(self) -> LogEntry | None:
         if not self.filtered_entries:
             return None

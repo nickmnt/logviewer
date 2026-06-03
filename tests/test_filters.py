@@ -67,3 +67,37 @@ def test_time_range_filter_is_inclusive_at_both_boundaries() -> None:
         "InsideEnd",
     ]
 
+
+def test_time_filter_excludes_raw_entries_without_timestamps() -> None:
+    entries = [
+        LogEntry(raw="raw failure line", message="raw failure line"),
+        LogEntry(
+            raw="2026-06-03 09:15:00.0000|INFO|Category1|InsideStart",
+            message="InsideStart",
+            timestamp=datetime(2026, 6, 3, 9, 15, 0, 0),
+            level=LogLevel.INFO,
+            category="Category1",
+            is_parsed=True,
+        ),
+    ]
+    filter_spec = FilterSpec(start_time=datetime(2026, 6, 3, 9, 15, 0, 0))
+
+    assert [entry.message for entry in apply_filter(entries, filter_spec)] == ["InsideStart"]
+
+
+def test_text_filter_can_match_raw_entries() -> None:
+    entries = [
+        LogEntry(raw="socket reset by peer", message="socket reset by peer"),
+        LogEntry(
+            raw="2026-06-03 09:15:00.0000|INFO|Category1|healthy",
+            message="healthy",
+            timestamp=datetime(2026, 6, 3, 9, 15, 0, 0),
+            level=LogLevel.INFO,
+            category="Category1",
+            is_parsed=True,
+        ),
+    ]
+
+    assert [entry.message for entry in apply_filter(entries, FilterSpec(text_query="reset"))] == [
+        "socket reset by peer"
+    ]

@@ -97,3 +97,81 @@ async def test_app_open_modal_prefills_selected_recent_path(tmp_path) -> None:
 
         path_input = app.screen.query_one("#open-path", Input)
         assert path_input.value == str(second)
+
+
+@pytest.mark.anyio
+async def test_app_preserves_arrow_key_selection_across_follow_refresh(tmp_path) -> None:
+    log_file = tmp_path / "app.log"
+    log_file.write_text(
+        "\n".join(
+            [
+                "2026-06-03 09:14:27.1234|TRACE|Category1|one",
+                "2026-06-03 09:15:00.0000|ERROR|Category2|two",
+                "2026-06-03 09:15:01.0000|INFO|Category3|three",
+            ]
+        )
+    )
+
+    app = LogViewerApp(initial_path=str(log_file))
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        table = app.query_one(DataTable)
+
+        await pilot.press("down")
+        await pilot.pause()
+        assert table.cursor_coordinate.row == 1
+
+        app._refresh_follow_mode()
+        await pilot.pause()
+
+        assert table.cursor_coordinate.row == 1
+        assert app.controller.snapshot().selected_index == 1
+
+
+@pytest.mark.anyio
+async def test_app_pause_follow_blocks_reload_until_resumed(tmp_path) -> None:
+    log_file = tmp_path / "app.log"
+    log_file.write_text("2026-06-03 09:14:27.1234|TRACE|Category1|one")
+
+    app = LogViewerApp(initial_path=str(log_file))
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        table = app.query_one(DataTable)
+        assert table.row_count == 1
+
+        await pilot.press("space")
+        await pilot.pause()
+        log_file.write_text(
+            "\n".join(
+                [
+                    "2026-06-03 09:14:27.1234|TRACE|Category1|one",
+                    "2026-06-03 09:15:00.0000|INFO|Category2|two",
+                ]
+            )
+        )
+
+        app._refresh_follow_mode()
+        await pilot.pause()
+        assert table.row_count == 1
+
+        await pilot.press("space")
+        await pilot.pause()
+        app._refresh_follow_mode()
+        await pilot.pause()
+
+        assert table.row_count == 2
+
+
+@pytest.mark.anyio
+async def test_app_shows_empty_state_for_empty_file(tmp_path) -> None:
+    log_file = tmp_path / "empty.log"
+    log_file.write_text("")
+
+    app = LogViewerApp(initial_path=str(log_file))
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        table = app.query_one(DataTable)
+        empty_state = app.query_one("#empty-state", Static)
+
+        assert table.row_count == 0
+        assert empty_state.display is True
