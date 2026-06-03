@@ -8,6 +8,7 @@ from .chrome import close_overlay, default_chrome_state, open_overlay, pause_fol
 from .filtering import apply_filter
 from .models import FilterSpec, LogEntry, SavedView, UiChromeState
 from .parsing import parse_nlog_line
+from .paths import favorites_path, saved_views_path
 from .saved_views import SavedViewStore
 
 
@@ -28,8 +29,8 @@ class ViewerController:
         file_catalog: FileCatalog | None = None,
         saved_views: SavedViewStore | None = None,
     ) -> None:
-        self.file_catalog = file_catalog or FileCatalog()
-        self.saved_views = saved_views or SavedViewStore()
+        self.file_catalog = file_catalog or FileCatalog(favorites_path())
+        self.saved_views = saved_views or SavedViewStore(saved_views_path())
         self.current_file: str | None = None
         self.entries: list[LogEntry] = []
         self.filtered_entries: list[LogEntry] = []

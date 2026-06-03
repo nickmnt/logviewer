@@ -1,0 +1,99 @@
+import pytest
+from textual.widgets import DataTable, Input, ListView, Static
+
+from logviewer.app import LogViewerApp
+
+
+@pytest.mark.anyio
+async def test_app_loads_initial_file_and_populates_table(tmp_path) -> None:
+    log_file = tmp_path / "app.log"
+    log_file.write_text(
+        "\n".join(
+            [
+                "2026-06-03 09:14:27.1234|TRACE|Category1|TheActualLog",
+                "2026-06-03 09:15:00.0000|ERROR|Category2|Boom",
+            ]
+        )
+    )
+
+    app = LogViewerApp(initial_path=str(log_file))
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        table = app.query_one(DataTable)
+        summary = app.query_one("#summary", Static)
+
+        assert table.row_count == 2
+        assert "app.log" in summary.content
+
+
+@pytest.mark.anyio
+async def test_app_opens_filter_modal_and_applies_text_filter(tmp_path) -> None:
+    log_file = tmp_path / "app.log"
+    log_file.write_text(
+        "\n".join(
+            [
+                "2026-06-03 09:14:27.1234|TRACE|Category1|TheActualLog",
+                "2026-06-03 09:15:00.0000|ERROR|Category2|Boom",
+            ]
+        )
+    )
+
+    app = LogViewerApp(initial_path=str(log_file))
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        await pilot.press("f")
+        query = app.screen.query_one("#text-query", Input)
+        query.value = "Boom"
+        getattr(app.screen, "apply_filter")()
+        await pilot.pause()
+
+        table = app.query_one(DataTable)
+        summary = app.query_one("#summary", Static)
+
+        assert table.row_count == 1
+        assert "text:Boom" in summary.content
+
+
+@pytest.mark.anyio
+async def test_app_toggles_detail_pane_for_selected_log(tmp_path) -> None:
+    log_file = tmp_path / "app.log"
+    log_file.write_text("2026-06-03 09:14:27.1234|TRACE|Category1|TheActualLog")
+
+    app = LogViewerApp(initial_path=str(log_file))
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        detail = app.query_one("#detail", Static)
+        assert detail.display is False
+
+        await pilot.press("enter")
+        await pilot.pause()
+
+        assert detail.display is True
+        assert "TheActualLog" in detail.content
+
+
+@pytest.mark.anyio
+async def test_app_open_modal_prefills_selected_recent_path(tmp_path) -> None:
+    first = tmp_path / "first.log"
+    second = tmp_path / "second.log"
+    first.write_text("2026-06-03 09:14:27.1234|TRACE|Category1|one")
+    second.write_text("2026-06-03 09:14:27.1234|TRACE|Category1|two")
+
+    app = LogViewerApp(initial_path=str(first))
+    app.controller.file_catalog.add_recent(str(second), second.name)
+
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        await pilot.press("o")
+        await pilot.pause()
+        candidate_paths = list(getattr(app.screen, "candidates"))
+        second_index = next(
+            index for index, (path, _label, _is_favorite) in enumerate(candidate_paths) if path == str(second)
+        )
+        candidates = app.screen.query_one("#open-candidates", ListView)
+        candidates.index = second_index
+        candidates.action_select_cursor()
+        await pilot.pause()
+
+        path_input = app.screen.query_one("#open-path", Input)
+        assert path_input.value == str(second)
