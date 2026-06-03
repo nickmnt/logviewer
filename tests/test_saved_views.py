@@ -41,3 +41,19 @@ def test_saved_view_can_be_disabled_without_being_deleted() -> None:
     assert disabled.name == "focus-errors"
     assert disabled.enabled is False
 
+
+def test_saved_views_persist_and_restore_active_view(tmp_path) -> None:
+    storage_path = tmp_path / "saved-views.json"
+    first = SavedViewStore(storage_path)
+    first.save(
+        "quiet-backend",
+        FilterSpec(exclude_levels=frozenset({LogLevel.TRACE})),
+    )
+    first.activate("quiet-backend")
+
+    second = SavedViewStore(storage_path)
+    restored = second.active_view()
+
+    assert restored is not None
+    assert restored.name == "quiet-backend"
+    assert restored.filter_spec.exclude_levels == frozenset({LogLevel.TRACE})

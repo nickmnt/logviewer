@@ -18,3 +18,19 @@ def test_open_candidates_prioritize_favorites_then_recent_files_without_duplicat
     ]
     assert [candidate.is_favorite for candidate in candidates] == [True, True, False]
 
+
+def test_catalog_persists_recent_and_favorite_entries(tmp_path) -> None:
+    storage_path = tmp_path / "catalog.json"
+    first = FileCatalog(storage_path)
+
+    first.add_recent("/logs/service-a.log", "service-a")
+    first.toggle_favorite("/logs/service-a.log", "service-a")
+    first.add_recent("/logs/service-b.log", "service-b")
+
+    second = FileCatalog(storage_path)
+
+    assert [candidate.path for candidate in second.open_candidates()] == [
+        "/logs/service-a.log",
+        "/logs/service-b.log",
+    ]
+    assert second.open_candidates()[0].is_favorite is True
