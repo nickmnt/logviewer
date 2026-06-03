@@ -10,6 +10,16 @@ python3 -m logviewer /path/to/app.log
 
 If no path is provided, open the app and press `o`.
 
+## Example Log File
+
+Generate the reproducible sample NLog file with:
+
+```bash
+python3 examples/generate_nlog_example.py
+```
+
+This writes [examples/nlog.log](/Users/mtagh/code/logviewer/examples/nlog.log).
+
 ## Main Keys
 
 - `o`: open a log file from a direct path or recent / favorite list
