@@ -1,6 +1,7 @@
 import asyncio
 
 import pytest
+from rich.text import Text
 from textual.coordinate import Coordinate
 from textual.widgets import DataTable, Header, Input, ListView, Static
 
@@ -125,6 +126,34 @@ async def test_app_toggles_detail_pane_for_selected_log(tmp_path) -> None:
 
         assert detail.display is True
         assert "TheActualLog" in detail.content
+
+
+@pytest.mark.anyio
+async def test_app_uses_standard_semantic_colors_for_log_levels(tmp_path) -> None:
+    log_file = tmp_path / "app.log"
+    log_file.write_text(
+        "\n".join(
+            [
+                "2026-06-03 09:14:27.1234|TRACE|Category1|trace",
+                "2026-06-03 09:15:00.0000|ERROR|Category2|error",
+            ]
+        )
+    )
+
+    app = LogViewerApp(initial_path=str(log_file))
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        table = app.query_one(DataTable)
+
+        trace_level = table.get_row_at(0)[1]
+        error_level = table.get_row_at(1)[1]
+
+        assert isinstance(trace_level, Text)
+        assert trace_level.plain == "TRACE"
+        assert trace_level.style == "bold #7f8ea3"
+        assert isinstance(error_level, Text)
+        assert error_level.plain == "ERROR"
+        assert error_level.style == "bold #ff7b72"
 
 
 @pytest.mark.anyio

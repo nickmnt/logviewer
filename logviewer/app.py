@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import date, datetime, timedelta
 from pathlib import Path
 
+from rich.text import Text
 from textual import events
 from textual import on
 from textual.app import App, ComposeResult
@@ -17,6 +18,14 @@ from .models import FilterSpec, LogLevel, SavedView, TimeFilterContext
 
 
 LEVEL_ORDER = [LogLevel.TRACE, LogLevel.DEBUG, LogLevel.INFO, LogLevel.WARN, LogLevel.ERROR, LogLevel.FATAL]
+LEVEL_COLORS = {
+    LogLevel.TRACE: "#7f8ea3",
+    LogLevel.DEBUG: "#4ea1ff",
+    LogLevel.INFO: "#3ccf91",
+    LogLevel.WARN: "#f4c95d",
+    LogLevel.ERROR: "#ff7b72",
+    LogLevel.FATAL: "#ff4d6d",
+}
 
 
 def _parse_csv_values(value: str) -> frozenset[str]:
@@ -48,6 +57,12 @@ def _parse_optional_datetime(value: str, *, reference_date: date | None = None) 
             continue
 
     raise ValueError(f"Invalid datetime value: {value}")
+
+
+def _render_level_cell(level: LogLevel | None) -> Text:
+    if level is None:
+        return Text("RAW", style="bold #9fb4c8")
+    return Text(level.value, style=f"bold {LEVEL_COLORS[level]}")
 
 
 class OpenLogScreen(ModalScreen[object]):
@@ -581,7 +596,7 @@ class LogViewerApp(App[None]):
             [
                 (
                     entry.timestamp.strftime("%Y-%m-%d %H:%M:%S.%f")[:-2] if entry.timestamp else "",
-                    entry.level.value if entry.level else "RAW",
+                    _render_level_cell(entry.level),
                     entry.category or "",
                     entry.message,
                 )
