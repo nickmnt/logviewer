@@ -34,3 +34,12 @@ def test_catalog_persists_recent_and_favorite_entries(tmp_path) -> None:
         "/logs/service-b.log",
     ]
     assert second.open_candidates()[0].is_favorite is True
+
+
+def test_catalog_ignores_malformed_storage_payload(tmp_path) -> None:
+    storage_path = tmp_path / "catalog.json"
+    storage_path.write_text("{not valid json")
+
+    catalog = FileCatalog(storage_path)
+
+    assert catalog.open_candidates() == []

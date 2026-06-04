@@ -42,7 +42,10 @@ class SavedViewStore:
         if self._storage_path is None or not self._storage_path.exists():
             return
 
-        payload = json.loads(self._storage_path.read_text())
+        try:
+            payload = json.loads(self._storage_path.read_text())
+        except json.JSONDecodeError:
+            return
         self._active_name = payload.get("active_name")
         for item in payload.get("views", []):
             view = SavedView(

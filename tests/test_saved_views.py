@@ -57,3 +57,13 @@ def test_saved_views_persist_and_restore_active_view(tmp_path) -> None:
     assert restored is not None
     assert restored.name == "quiet-backend"
     assert restored.filter_spec.exclude_levels == frozenset({LogLevel.TRACE})
+
+
+def test_saved_views_ignore_malformed_storage_payload(tmp_path) -> None:
+    storage_path = tmp_path / "saved-views.json"
+    storage_path.write_text("{not valid json")
+
+    store = SavedViewStore(storage_path)
+
+    assert store.list_views() == []
+    assert store.active_view() is None
