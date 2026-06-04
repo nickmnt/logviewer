@@ -33,7 +33,7 @@ This writes [examples/nlog.log](/Users/mtagh/code/logviewer/examples/nlog.log).
 - `x`: hide or restore the selected category
 - `r`: reload the current file
 - `Space`: pause or resume follow mode
-- `Enter`: show or hide the detail pane
+- `Enter`: show or hide the detail inspector
 - `j` / `k`: move selection
 - `q`: quit
 
@@ -45,5 +45,7 @@ This writes [examples/nlog.log](/Users/mtagh/code/logviewer/examples/nlog.log).
 - Supports free-text filtering and inclusive time ranges
 - Accepts human-friendly time input such as `09:15` when the log date is already obvious from the file
 - Supports transient find navigation without replacing the active filters
+- Uses standard semantic colors for log levels
+- Shows the selected log entry in a side inspector instead of covering table rows
 - Persists recent files, favorites, and saved views in a local state directory
 - Keeps controls in transient modals so the main view stays focused on logs

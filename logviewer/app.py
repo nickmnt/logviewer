@@ -14,7 +14,7 @@ from textual.screen import ModalScreen
 from textual.widgets import Button, DataTable, Footer, Header, Input, Label, ListItem, ListView, Static
 
 from .controller import ViewerController, ViewerSnapshot
-from .models import FilterSpec, LogLevel, SavedView, TimeFilterContext
+from .models import FilterSpec, LogEntry, LogLevel, SavedView, TimeFilterContext
 
 
 LEVEL_ORDER = [LogLevel.TRACE, LogLevel.DEBUG, LogLevel.INFO, LogLevel.WARN, LogLevel.ERROR, LogLevel.FATAL]
@@ -63,6 +63,24 @@ def _render_level_cell(level: LogLevel | None) -> Text:
     if level is None:
         return Text("RAW", style="bold #9fb4c8")
     return Text(level.value, style=f"bold {LEVEL_COLORS[level]}")
+
+
+def _render_detail_text(snapshot: ViewerSnapshot, selected: LogEntry | None) -> str:
+    if selected is None:
+        return "No entry selected."
+
+    timestamp = selected.timestamp.strftime("%Y-%m-%d %H:%M:%S.%f")[:-2] if selected.timestamp else "Unparsed"
+    level = selected.level.value if selected.level else "RAW"
+    category = selected.category or "Uncategorized"
+    position = f"{snapshot.selected_index + 1}/{len(snapshot.visible_entries)}"
+    return (
+        f"Selected entry {position}\n"
+        f"Time: {timestamp}\n"
+        f"Level: {level}\n"
+        f"Category: {category}\n\n"
+        f"Message\n{selected.message}\n\n"
+        f"Raw\n{selected.raw}"
+    )
 
 
 class OpenLogScreen(ModalScreen[object]):
@@ -407,6 +425,11 @@ class LogViewerApp(App[None]):
         height: 1fr;
     }
 
+    #content-row {
+        layout: horizontal;
+        height: 1fr;
+    }
+
     #summary {
         height: 1;
         padding: 0 1;
@@ -416,18 +439,20 @@ class LogViewerApp(App[None]):
 
     #table-wrap {
         layout: vertical;
+        width: 5fr;
         height: 1fr;
         background: #0f1620;
         border: round #26445c;
     }
 
     #detail {
-        layer: overlay;
-        dock: bottom;
-        width: 1fr;
-        height: 6;
-        border-top: solid #26445c;
-        padding: 0 1;
+        width: 3fr;
+        min-width: 30;
+        max-width: 54;
+        height: 1fr;
+        margin-left: 1;
+        border: round #26445c;
+        padding: 1 2;
         background: #16212c;
         color: #dce9f7;
     }
@@ -520,12 +545,13 @@ class LogViewerApp(App[None]):
         yield Header(show_clock=False)
         with Vertical(id="body"):
             yield Static("No file loaded. Press o to open a log file.", id="summary")
-            with Container(id="table-wrap"):
-                yield LogTable(id="log-table")
-                yield Static(
-                    "Open a log file with o. Then use f for filters, v for saved views, Enter for details, and Space to pause follow mode.",
-                    id="empty-state",
-                )
+            with Horizontal(id="content-row"):
+                with Container(id="table-wrap"):
+                    yield LogTable(id="log-table")
+                    yield Static(
+                        "Open a log file with o. Then use f for filters, v for saved views, Enter for details, and Space to pause follow mode.",
+                        id="empty-state",
+                    )
                 yield Static("", id="detail")
         yield Footer()
 
@@ -639,7 +665,7 @@ class LogViewerApp(App[None]):
         snapshot = snapshot or self.controller.snapshot()
         detail = self.query_one("#detail", Static)
         selected = self.controller.selected_entry()
-        detail.update(selected.raw if selected else "No entry selected.")
+        detail.update(_render_detail_text(snapshot, selected))
         detail.display = snapshot.chrome.detail_visible
 
     def _sync_summary(self) -> None:
@@ -774,8 +800,7 @@ class LogViewerApp(App[None]):
             return
         snapshot = self.controller.set_selection(self._table_window_start + local_row)
         if self.query_one("#detail", Static).display:
-            selected = self.controller.selected_entry()
-            self.query_one("#detail", Static).update(selected.raw if selected else "No entry selected.")
+            self.query_one("#detail", Static).update(_render_detail_text(snapshot, self.controller.selected_entry()))
         self._sync_table_cursor(snapshot)
 
     def _move_selection(self, delta: int) -> None:
@@ -784,8 +809,7 @@ class LogViewerApp(App[None]):
         snapshot = self.controller.move_selection(delta)
         self._sync_table_cursor(snapshot)
         if self.query_one("#detail", Static).display:
-            selected = self.controller.selected_entry()
-            self.query_one("#detail", Static).update(selected.raw if selected else "No entry selected.")
+            self.query_one("#detail", Static).update(_render_detail_text(snapshot, self.controller.selected_entry()))
 
     def _set_selection(self, index: int) -> None:
         if not self._table_navigation_enabled():
@@ -793,8 +817,7 @@ class LogViewerApp(App[None]):
         snapshot = self.controller.set_selection(index)
         self._sync_table_cursor(snapshot)
         if self.query_one("#detail", Static).display:
-            selected = self.controller.selected_entry()
-            self.query_one("#detail", Static).update(selected.raw if selected else "No entry selected.")
+            self.query_one("#detail", Static).update(_render_detail_text(snapshot, self.controller.selected_entry()))
 
     def action_move_down(self) -> None:
         self._move_selection(1)

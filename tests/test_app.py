@@ -126,6 +126,7 @@ async def test_app_toggles_detail_pane_for_selected_log(tmp_path) -> None:
 
         assert detail.display is True
         assert "TheActualLog" in detail.content
+        assert "Selected entry 1/1" in detail.content
 
 
 @pytest.mark.anyio
@@ -190,6 +191,32 @@ async def test_app_detail_toggle_preserves_scroll_anchor_in_small_viewport(tmp_p
         assert table.cursor_coordinate.row == before_cursor_row
         assert table.scroll_y == before_scroll_y
         assert table.scrollable_content_region.height == before_height
+
+
+@pytest.mark.anyio
+async def test_app_detail_pane_opens_beside_table_without_covering_rows(tmp_path) -> None:
+    log_file = tmp_path / "app.log"
+    log_file.write_text(
+        "\n".join(
+            [
+                f"2026-06-03 09:14:{index:02d}.0000|INFO|Category{index}|message {index}"
+                for index in range(5)
+            ]
+        )
+    )
+
+    app = LogViewerApp(initial_path=str(log_file))
+    async with app.run_test(size=(120, 18)) as pilot:
+        await pilot.pause()
+        table = app.query_one(DataTable)
+
+        await pilot.press("enter")
+        await pilot.pause()
+
+        detail = app.query_one("#detail", Static)
+
+        assert detail.display is True
+        assert table.region.right <= detail.region.x
 
 
 @pytest.mark.anyio
