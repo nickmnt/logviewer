@@ -1,51 +1,57 @@
 # Logviewer
 
-Content-first terminal log viewer for standard NLog-style files.
+Content-first React log viewer for standard NLog-style files.
 
 ## Run
 
 ```bash
-python3 -m logviewer /path/to/app.log
+npm install
+npm run dev
 ```
 
-If no path is provided, open the app and press `o`.
+Then open [http://127.0.0.1:4173](http://127.0.0.1:4173) if Vite does not open it for you.
 
-## Example Log File
+## Opening Logs
 
-Generate the reproducible sample NLog file with:
+- Use `Open` to choose a local log file with the browser file picker.
+- Use `Open bundled sample` to start instantly with [examples/nlog.log](/Users/mtagh/code/logviewer/examples/nlog.log).
+- Recent files, favorites, and saved views persist locally in the browser.
+- Local file follow mode works when the browser keeps permission for the file handle.
 
-```bash
-python3 examples/generate_nlog_example.py
-```
+## Main Shortcuts
 
-This writes [examples/nlog.log](/Users/mtagh/code/logviewer/examples/nlog.log).
-
-## Main Keys
-
-- `o`: open a log file from a direct path or recent / favorite list
-- `f`: edit filters
+- `o`: open file launcher
+- `f`: open filters
 - `/`: open transient find
-- `n`: jump to the next find match
-- `Shift+N`: jump to the previous find match
-- `v`: save or activate named filter views
-- `*`: toggle favorite for the current file
+- `n`: next find match
+- `Shift+N`: previous find match
+- `v`: open saved views
 - `e`: hide or restore the selected level
 - `x`: hide or restore the selected category
 - `r`: reload the current file
 - `Space`: pause or resume follow mode
 - `Enter`: show or hide the detail inspector
 - `j` / `k`: move selection
-- `q`: quit
 
 ## Behavior
 
 - Parses standard `timestamp|LEVEL|Category|Message` NLog lines
 - Keeps unmatched lines visible as raw entries
+- Uses a virtualized log table for smoother scrolling on larger files
 - Supports include and exclude filters for levels and categories
 - Supports free-text filtering and inclusive time ranges
-- Accepts human-friendly time input such as `09:15` when the log date is already obvious from the file
-- Supports transient find navigation without replacing the active filters
+- Accepts human-friendly time input such as `09:15` when the file context already makes the day obvious
+- Supports transient find navigation without overwriting the active filter set
 - Uses standard semantic colors for log levels
 - Shows the selected log entry in a side inspector instead of covering table rows
-- Persists recent files, favorites, and saved views in a local state directory
-- Keeps controls in transient modals so the main view stays focused on logs
+- Keeps controls in transient overlays so the main reading surface stays uncluttered
+
+## Example Generator
+
+Generate a reproducible NLog-style sample file with:
+
+```bash
+python3 examples/generate_nlog_example.py
+```
+
+This writes [examples/nlog.log](/Users/mtagh/code/logviewer/examples/nlog.log).
