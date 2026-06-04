@@ -7,6 +7,7 @@ from textual import events
 from textual import on
 from textual.app import App, ComposeResult
 from textual.binding import Binding
+from textual.css.query import NoMatches
 from textual.containers import Container, Horizontal, Vertical
 from textual.screen import ModalScreen
 from textual.widgets import Button, DataTable, Footer, Header, Input, Label, ListItem, ListView, Static
@@ -339,6 +340,35 @@ class LogTable(DataTable):
         # Hover-only row repainting is expensive on dense log tables and doesn't add much value.
         return
 
+    async def _on_click(self, event: events.Click) -> None:
+        await super()._on_click(event)
+        if isinstance(self.app, LogViewerApp) and self.app._table_navigation_enabled():
+            self.app.select_table_row(self.cursor_row)
+
+    def action_cursor_down(self) -> None:
+        if isinstance(self.app, LogViewerApp) and self.app._table_navigation_enabled():
+            self.app.action_move_down()
+            return
+        super().action_cursor_down()
+
+    def action_cursor_up(self) -> None:
+        if isinstance(self.app, LogViewerApp) and self.app._table_navigation_enabled():
+            self.app.action_move_up()
+            return
+        super().action_cursor_up()
+
+    def action_page_down(self) -> None:
+        if isinstance(self.app, LogViewerApp) and self.app._table_navigation_enabled():
+            self.app.action_page_down()
+            return
+        super().action_page_down()
+
+    def action_page_up(self) -> None:
+        if isinstance(self.app, LogViewerApp) and self.app._table_navigation_enabled():
+            self.app.action_page_up()
+            return
+        super().action_page_up()
+
 
 class LogViewerApp(App[None]):
     CSS = """
@@ -452,6 +482,12 @@ class LogViewerApp(App[None]):
         Binding("x", "exclude_category", "Hide Category", priority=True),
         Binding("n", "find_next", "Next Match", priority=True),
         Binding("N", "find_previous", "Prev Match", priority=True),
+        Binding("down", "move_down", "Down", show=False, priority=True),
+        Binding("up", "move_up", "Up", show=False, priority=True),
+        Binding("pagedown", "page_down", "Page Down", show=False, priority=True),
+        Binding("pageup", "page_up", "Page Up", show=False, priority=True),
+        Binding("home", "move_top", "Top", show=False, priority=True),
+        Binding("end", "move_bottom", "Bottom", show=False, priority=True),
         Binding("j", "move_down", "Down", show=False),
         Binding("k", "move_up", "Up", show=False),
     ]
@@ -461,6 +497,9 @@ class LogViewerApp(App[None]):
         self.initial_path = initial_path
         self.controller = ViewerController()
         self.follow_interval = 1.0
+        self.max_rendered_rows = 500
+        self._table_window_start = 0
+        self._table_cursor_sync_in_progress = False
 
     def compose(self) -> ComposeResult:
         yield Header(show_clock=False)
@@ -479,20 +518,13 @@ class LogViewerApp(App[None]):
         table = self.query_one(DataTable)
         table.cursor_type = "row"
         table.add_columns("Time", "Level", "Category", "Message")
+        table.focus()
         detail = self.query_one("#detail", Static)
         detail.display = False
         self.set_interval(self.follow_interval, self._refresh_follow_mode)
         if self.initial_path:
             self.controller.open_file(self.initial_path)
             self._sync_view()
-
-    @on(DataTable.RowHighlighted, "#log-table")
-    def sync_table_row_to_controller(self, event: DataTable.RowHighlighted) -> None:
-        self.controller.set_selection(event.cursor_row)
-        detail = self.query_one("#detail", Static)
-        if detail.display:
-            selected = self.controller.selected_entry()
-            detail.update(selected.raw if selected else "No entry selected.")
 
     def _refresh_follow_mode(self) -> None:
         snapshot = self.controller.snapshot()
@@ -507,8 +539,43 @@ class LogViewerApp(App[None]):
         self._sync_detail(snapshot)
         self._sync_summary()
 
+    def _table_window_margin(self) -> int:
+        return max(1, min(50, self.max_rendered_rows // 4))
+
+    def _window_start_for_selection(self, snapshot: ViewerSnapshot) -> int:
+        total_rows = len(snapshot.visible_entries)
+        if total_rows <= self.max_rendered_rows:
+            return 0
+
+        max_start = total_rows - self.max_rendered_rows
+        start = min(self._table_window_start, max_start)
+        end = start + self.max_rendered_rows
+        selection = snapshot.selected_index
+
+        if selection < start or selection >= end:
+            return min(max(selection - (self.max_rendered_rows // 2), 0), max_start)
+
+        margin = min(self._table_window_margin(), self.max_rendered_rows // 2)
+        if selection < start + margin:
+            return max(0, min(selection - margin, max_start))
+
+        if selection >= end - margin:
+            return max(0, min(selection - self.max_rendered_rows + margin + 1, max_start))
+
+        return start
+
+    def _rendered_entries(self, snapshot: ViewerSnapshot) -> tuple[int, tuple]:
+        start = self._window_start_for_selection(snapshot)
+        end = start + self.max_rendered_rows
+        return start, snapshot.visible_entries[start:end]
+
     def _sync_table(self, snapshot: ViewerSnapshot) -> None:
-        table = self.query_one(DataTable)
+        try:
+            table = self.query_one(DataTable)
+        except NoMatches:
+            return
+        start, visible_window = self._rendered_entries(snapshot)
+        self._table_window_start = start
         table.clear()
         table.add_rows(
             [
@@ -518,14 +585,40 @@ class LogViewerApp(App[None]):
                     entry.category or "",
                     entry.message,
                 )
-                for entry in snapshot.visible_entries
+                for entry in visible_window
             ]
         )
 
         empty_state = self.query_one("#empty-state", Static)
         empty_state.display = not snapshot.visible_entries
         if snapshot.visible_entries:
-            table.move_cursor(row=snapshot.selected_index, column=0, animate=False)
+            local_row = snapshot.selected_index - self._table_window_start
+            self._table_cursor_sync_in_progress = True
+            try:
+                table.move_cursor(row=local_row, column=0, animate=False)
+            finally:
+                self._table_cursor_sync_in_progress = False
+
+    def _sync_table_cursor(self, snapshot: ViewerSnapshot) -> bool:
+        try:
+            table = self.query_one(DataTable)
+        except NoMatches:
+            return False
+        start = self._window_start_for_selection(snapshot)
+        if start != self._table_window_start:
+            self._sync_table(snapshot)
+            return True
+
+        if not snapshot.visible_entries:
+            return False
+
+        local_row = snapshot.selected_index - self._table_window_start
+        self._table_cursor_sync_in_progress = True
+        try:
+            table.move_cursor(row=local_row, column=0, animate=False)
+        finally:
+            self._table_cursor_sync_in_progress = False
+        return False
 
     def _sync_detail(self, snapshot: ViewerSnapshot | None = None) -> None:
         snapshot = snapshot or self.controller.snapshot()
@@ -658,8 +751,50 @@ class LogViewerApp(App[None]):
         self.controller.find_previous()
         self._sync_view()
 
+    def _table_navigation_enabled(self) -> bool:
+        return not isinstance(self.screen, ModalScreen)
+
+    def select_table_row(self, local_row: int) -> None:
+        if not self._table_navigation_enabled():
+            return
+        snapshot = self.controller.set_selection(self._table_window_start + local_row)
+        if self.query_one("#detail", Static).display:
+            selected = self.controller.selected_entry()
+            self.query_one("#detail", Static).update(selected.raw if selected else "No entry selected.")
+        self._sync_table_cursor(snapshot)
+
+    def _move_selection(self, delta: int) -> None:
+        if not self._table_navigation_enabled():
+            return
+        snapshot = self.controller.move_selection(delta)
+        self._sync_table_cursor(snapshot)
+        if self.query_one("#detail", Static).display:
+            selected = self.controller.selected_entry()
+            self.query_one("#detail", Static).update(selected.raw if selected else "No entry selected.")
+
+    def _set_selection(self, index: int) -> None:
+        if not self._table_navigation_enabled():
+            return
+        snapshot = self.controller.set_selection(index)
+        self._sync_table_cursor(snapshot)
+        if self.query_one("#detail", Static).display:
+            selected = self.controller.selected_entry()
+            self.query_one("#detail", Static).update(selected.raw if selected else "No entry selected.")
+
     def action_move_down(self) -> None:
-        self.query_one(DataTable).action_cursor_down()
+        self._move_selection(1)
 
     def action_move_up(self) -> None:
-        self.query_one(DataTable).action_cursor_up()
+        self._move_selection(-1)
+
+    def action_page_down(self) -> None:
+        self._move_selection(self.max_rendered_rows - 1)
+
+    def action_page_up(self) -> None:
+        self._move_selection(-(self.max_rendered_rows - 1))
+
+    def action_move_top(self) -> None:
+        self._set_selection(0)
+
+    def action_move_bottom(self) -> None:
+        self._set_selection(len(self.controller.filtered_entries) - 1)

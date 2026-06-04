@@ -30,6 +30,58 @@ async def test_app_loads_initial_file_and_populates_table(tmp_path) -> None:
 
 
 @pytest.mark.anyio
+async def test_app_limits_rendered_rows_for_large_log_files(tmp_path) -> None:
+    log_file = tmp_path / "large.log"
+    log_file.write_text(
+        "\n".join(
+            [
+                f"2026-06-03 09:14:{index:02d}.0000|INFO|Category{index}|message {index}"
+                for index in range(40)
+            ]
+        )
+    )
+
+    app = LogViewerApp(initial_path=str(log_file))
+    app.max_rendered_rows = 10
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        table = app.query_one(DataTable)
+        summary = app.query_one("#summary", Static)
+
+        assert table.row_count == 10
+        assert table.get_row_at(0)[3] == "message 0"
+        assert "40/40 lines" in summary.content
+
+
+@pytest.mark.anyio
+async def test_app_navigation_shifts_render_window_for_large_log_files(tmp_path) -> None:
+    log_file = tmp_path / "large.log"
+    log_file.write_text(
+        "\n".join(
+            [
+                f"2026-06-03 09:14:{index:02d}.0000|INFO|Category{index}|message {index}"
+                for index in range(40)
+            ]
+        )
+    )
+
+    app = LogViewerApp(initial_path=str(log_file))
+    app.max_rendered_rows = 10
+    async with app.run_test() as pilot:
+        await pilot.pause()
+        table = app.query_one(DataTable)
+
+        for _ in range(12):
+            app.action_move_down()
+            await pilot.pause()
+
+        assert app.controller.snapshot().selected_index == 12
+        assert table.row_count == 10
+        assert table.get_row_at(0)[3] == "message 5"
+        assert table.cursor_coordinate.row == 7
+
+
+@pytest.mark.anyio
 async def test_app_opens_filter_modal_and_applies_text_filter(tmp_path) -> None:
     log_file = tmp_path / "app.log"
     log_file.write_text(
