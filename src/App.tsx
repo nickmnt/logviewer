@@ -1009,40 +1009,40 @@ export default function App() {
       </section>
 
       <section className="workspace">
-        <div className="viewer-stack">
-          <section className={`noise-bar${topCategoryValues.length === 0 ? " noise-bar--empty" : ""}`}>
-            <div className="rail-header">
-              <div>
-                <p className="eyebrow">Noise controls</p>
-                <strong>Quick category mute</strong>
-              </div>
-              <button
-                className="ghost-button"
-                onClick={() => {
-                  setFilterDraft(filters);
-                  setOverlay("filters");
-                }}
-              >
-                Advanced filters
-              </button>
+        <section className={`noise-bar${topCategoryValues.length === 0 ? " noise-bar--empty" : ""}`}>
+          <div className="rail-header">
+            <div>
+              <p className="eyebrow">Noise controls</p>
+              <strong>Quick category mute</strong>
             </div>
-            {topCategoryValues.length === 0 ? (
-              <p className="rail-empty">Open a log to expose the most frequent noisy categories here.</p>
-            ) : (
-              <div className="noise-chip-row">
-                {topCategoryValues.map((category) => (
-                  <button
-                    key={category}
-                    className={`category-chip${filters.excludeCategories.includes(category) ? " category-chip--excluded" : ""}`}
-                    onClick={() => toggleExcludedCategory(category)}
-                  >
-                    {category}
-                  </button>
-                ))}
-              </div>
-            )}
-          </section>
+            <button
+              className="ghost-button"
+              onClick={() => {
+                setFilterDraft(filters);
+                setOverlay("filters");
+              }}
+            >
+              Advanced filters
+            </button>
+          </div>
+          {topCategoryValues.length === 0 ? (
+            <p className="rail-empty">Open a log to expose the most frequent noisy categories here.</p>
+          ) : (
+            <div className="noise-chip-row">
+              {topCategoryValues.map((category) => (
+                <button
+                  key={category}
+                  className={`category-chip${filters.excludeCategories.includes(category) ? " category-chip--excluded" : ""}`}
+                  onClick={() => toggleExcludedCategory(category)}
+                >
+                  {category}
+                </button>
+              ))}
+            </div>
+          )}
+        </section>
 
+        <div className={`workspace-main${showDetailPanel ? " workspace-main--with-detail" : ""}`}>
           <div className="viewer-panel">
             <div className="table-toolbar">
               <div>
@@ -1104,30 +1104,30 @@ export default function App() {
               )}
             </div>
           </div>
-        </div>
 
-        {showDetailPanel ? (
-          <aside className="detail-panel">
-            <div className="detail-header">
-              <div>
-                <h2>Detail</h2>
-                <p className="overlay-note">Selection follows the table without covering the rows.</p>
+          {showDetailPanel ? (
+            <aside className="detail-panel">
+              <div className="detail-header">
+                <div>
+                  <h2>Detail</h2>
+                  <p className="overlay-note">Selection follows the table without covering the rows.</p>
+                </div>
+                <div className="detail-actions">
+                  <button className="ghost-button" onClick={() => selectedEntry?.level && toggleExcludedLevel(selectedEntry.level)}>
+                    Hide level
+                  </button>
+                  <button className="ghost-button" onClick={() => selectedEntry?.category && toggleExcludedCategory(selectedEntry.category)}>
+                    Hide category
+                  </button>
+                  <button className="ghost-button" onClick={() => void copySelectedRaw()}>
+                    Copy raw
+                  </button>
+                </div>
               </div>
-              <div className="detail-actions">
-                <button className="ghost-button" onClick={() => selectedEntry?.level && toggleExcludedLevel(selectedEntry.level)}>
-                  Hide level
-                </button>
-                <button className="ghost-button" onClick={() => selectedEntry?.category && toggleExcludedCategory(selectedEntry.category)}>
-                  Hide category
-                </button>
-                <button className="ghost-button" onClick={() => void copySelectedRaw()}>
-                  Copy raw
-                </button>
-              </div>
-            </div>
-            <pre>{buildDetailText(selectedEntry, selection, visibleEntries.length)}</pre>
-          </aside>
-        ) : null}
+              <pre>{buildDetailText(selectedEntry, selection, visibleEntries.length)}</pre>
+            </aside>
+          ) : null}
+        </div>
       </section>
 
       <footer className="statusbar">

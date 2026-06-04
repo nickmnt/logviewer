@@ -1,11 +1,19 @@
 :root {
   color-scheme: dark;
+  --bg-ink: #071019;
+  --bg-panel: rgba(8, 15, 23, 0.78);
+  --bg-button: rgba(15, 26, 37, 0.9);
+  --border-panel: rgba(76, 107, 134, 0.42);
+  --border-button: rgba(81, 113, 140, 0.58);
+  --text-main: #eef4fb;
+  --text-muted: #a9bfd4;
+  --accent-mint: #1fb48d;
   font-family: "IBM Plex Sans", "Avenir Next", "Segoe UI", sans-serif;
   background:
-    radial-gradient(circle at top left, rgba(84, 169, 255, 0.15), transparent 28%),
-    radial-gradient(circle at top right, rgba(42, 193, 154, 0.14), transparent 24%),
+    radial-gradient(circle at 8% 6%, rgba(84, 169, 255, 0.18), transparent 24%),
+    radial-gradient(circle at 92% 10%, rgba(42, 193, 154, 0.14), transparent 22%),
     linear-gradient(180deg, #0d1824 0%, #08101a 100%);
-  color: #eef4fb;
+  color: var(--text-main);
 }
 
 * {
@@ -21,6 +29,12 @@ body,
 
 body {
   min-height: 100vh;
+  background:
+    linear-gradient(180deg, rgba(2, 8, 14, 0.22), rgba(2, 8, 14, 0.22)),
+    repeating-linear-gradient(180deg, rgba(111, 173, 227, 0.04) 0, rgba(111, 173, 227, 0.04) 1px, transparent 1px, transparent 42px),
+    radial-gradient(circle at top left, rgba(84, 169, 255, 0.15), transparent 30%),
+    radial-gradient(circle at top right, rgba(42, 193, 154, 0.12), transparent 24%),
+    var(--bg-ink);
 }
 
 button,
@@ -44,7 +58,7 @@ input {
   border-radius: 14px;
   padding: 0.8rem 0.9rem;
   background: rgba(14, 24, 34, 0.9);
-  color: #eef4fb;
+  color: var(--text-main);
 }
 
 input:focus-visible,
@@ -55,10 +69,23 @@ button:focus-visible {
 
 .app-shell {
   min-height: 100vh;
+  max-width: 1680px;
+  margin: 0 auto;
   padding: 1.1rem;
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   grid-template-rows: auto auto auto minmax(0, 1fr) auto;
   gap: 0.85rem;
+}
+
+.topbar,
+.command-deck,
+.workspace-rails,
+.workspace,
+.workspace-main,
+.viewer-panel,
+.detail-panel {
+  min-width: 0;
 }
 
 .topbar,
@@ -69,9 +96,12 @@ button:focus-visible {
 .statusbar,
 .viewer-panel,
 .detail-panel {
-  border: 1px solid rgba(76, 107, 134, 0.42);
-  background: rgba(8, 15, 23, 0.72);
+  border: 1px solid var(--border-panel);
+  background: var(--bg-panel);
   backdrop-filter: blur(18px);
+  box-shadow:
+    inset 0 1px 0 rgba(164, 217, 255, 0.04),
+    0 18px 40px rgba(1, 6, 12, 0.22);
 }
 
 .topbar,
@@ -86,6 +116,7 @@ button:focus-visible {
 
 .topbar {
   display: flex;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 1rem;
   padding: 1rem 1.15rem;
@@ -111,7 +142,7 @@ button:focus-visible {
 
 .topbar-summary {
   margin: 0.6rem 0 0;
-  color: #a9bfd4;
+  color: var(--text-muted);
   max-width: 70ch;
 }
 
@@ -126,12 +157,23 @@ button:focus-visible {
   gap: 0.55rem;
 }
 
+.topbar-actions {
+  justify-content: flex-end;
+}
+
+.topbar-actions .action-button {
+  min-width: 5.8rem;
+}
+
 .action-button,
 .ghost-button,
 .primary-button,
 .segment-button,
 .view-pill-main,
 .view-pill-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   border-radius: 999px;
   padding: 0.7rem 1rem;
   transition:
@@ -146,8 +188,8 @@ button:focus-visible {
 .segment-button,
 .view-pill-main,
 .view-pill-toggle {
-  background: rgba(15, 26, 37, 0.9);
-  border: 1px solid rgba(81, 113, 140, 0.58);
+  background: var(--bg-button);
+  border: 1px solid var(--border-button);
   color: #e3edf6;
 }
 
@@ -166,7 +208,7 @@ button:focus-visible {
 }
 
 .primary-button {
-  background: linear-gradient(135deg, #3176f6 0%, #1fb48d 100%);
+  background: linear-gradient(135deg, #3176f6 0%, var(--accent-mint) 100%);
   color: white;
   box-shadow: 0 14px 28px rgba(35, 109, 196, 0.22);
 }
@@ -348,20 +390,27 @@ button:focus-visible {
 .workspace {
   min-height: 0;
   display: grid;
-  grid-template-columns: minmax(0, 1.7fr) minmax(21rem, 0.95fr);
-  gap: 0.85rem;
-}
-
-.viewer-stack {
-  min-height: 0;
-  display: grid;
+  grid-template-columns: minmax(0, 1fr);
   grid-template-rows: auto minmax(0, 1fr);
   gap: 0.85rem;
 }
 
-.viewer-panel {
+.workspace-main {
   min-height: 0;
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+  gap: 0.85rem;
+}
+
+.workspace-main--with-detail {
+  grid-template-columns: minmax(0, 1.7fr) minmax(20rem, 0.92fr);
+}
+
+.viewer-panel {
+  min-height: clamp(24rem, 56vh, 42rem);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
   grid-template-rows: auto auto minmax(0, 1fr);
   overflow: hidden;
 }
@@ -385,6 +434,7 @@ button:focus-visible {
 }
 
 .table-header {
+  min-width: 54rem;
   padding: 0.9rem 1rem;
   border-bottom: 1px solid rgba(62, 92, 117, 0.35);
   color: #87a6c1;
@@ -402,6 +452,7 @@ button:focus-visible {
 
 .table-spacer {
   position: relative;
+  min-width: 54rem;
 }
 
 .log-row {
@@ -435,11 +486,14 @@ button:focus-visible {
 .detail-panel {
   min-height: 0;
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   grid-template-rows: auto minmax(0, 1fr);
   overflow: hidden;
   padding: 1rem 1.05rem;
   align-self: start;
-  max-height: calc(100vh - 17rem);
+  position: sticky;
+  top: 1.1rem;
+  max-height: calc(100vh - 2.2rem);
 }
 
 .detail-header {
@@ -484,7 +538,7 @@ button:focus-visible {
 
 .statusbar {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 1rem;
   padding: 0.85rem 1.1rem;
@@ -648,12 +702,17 @@ button:focus-visible {
     grid-template-columns: 1fr;
   }
 
-  .workspace {
+  .workspace-main--with-detail {
     grid-template-columns: 1fr;
   }
 
   .overlay-grid {
     grid-template-columns: 1fr;
+  }
+
+  .detail-panel {
+    position: static;
+    max-height: 34rem;
   }
 }
 
@@ -692,6 +751,11 @@ button:focus-visible {
   .log-row {
     grid-template-columns: minmax(8rem, 1fr) minmax(5rem, 0.65fr) minmax(9rem, 1fr) minmax(0, 2fr);
     gap: 0.6rem;
+  }
+
+  .table-header,
+  .table-spacer {
+    min-width: 42rem;
   }
 
   .time-grid {
