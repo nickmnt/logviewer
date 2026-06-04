@@ -1,4 +1,14 @@
-import { CSSProperties, ChangeEvent, KeyboardEvent as ReactKeyboardEvent, ReactNode, useDeferredValue, useEffect, useRef, useState, useTransition } from "react";
+import {
+  CSSProperties,
+  ChangeEvent,
+  KeyboardEvent as ReactKeyboardEvent,
+  ReactNode,
+  useDeferredValue,
+  useEffect,
+  useRef,
+  useState,
+  useTransition,
+} from "react";
 import sampleLogText from "../examples/nlog.log?raw";
 import {
   applyFilter,
@@ -27,7 +37,27 @@ import {
   writeCatalog,
   writeSavedViews,
 } from "./lib/persistence";
-import { CatalogState, CurrentFile, FileRecord, FilterSpec, LOG_LEVELS, LogEntry, LogLevel, OverlayName, SavedView } from "./types";
+import {
+  activateSavedView,
+  applyQuickFocus,
+  buildFilterPills,
+  computeVisibleWindow,
+  getQuickFocusMode,
+  normalizeFilterSpec,
+  QuickFocusMode,
+  removeFilterPill,
+} from "./lib/workspace";
+import {
+  CatalogState,
+  CurrentFile,
+  FileRecord,
+  FilterSpec,
+  LOG_LEVELS,
+  LogEntry,
+  LogLevel,
+  OverlayName,
+  SavedView,
+} from "./types";
 
 const ROW_HEIGHT = 34;
 const OVERSCAN = 8;
@@ -37,18 +67,6 @@ const SAMPLE_RECORD: FileRecord = {
   source: "sample",
   isFavorite: false,
 };
-
-function normalizeFilterSpec(filterSpec: FilterSpec): FilterSpec {
-  return {
-    includeLevels: LOG_LEVELS.filter((level) => new Set(filterSpec.includeLevels).has(level)),
-    excludeLevels: LOG_LEVELS.filter((level) => new Set(filterSpec.excludeLevels).has(level)),
-    includeCategories: [...new Set(filterSpec.includeCategories.map((item) => item.trim()).filter(Boolean))].sort(),
-    excludeCategories: [...new Set(filterSpec.excludeCategories.map((item) => item.trim()).filter(Boolean))].sort(),
-    textQuery: filterSpec.textQuery.trim(),
-    startTime: filterSpec.startTime.trim(),
-    endTime: filterSpec.endTime.trim(),
-  };
-}
 
 function buildDetailText(entry: LogEntry | null, selectedIndex: number, totalEntries: number): string {
   if (!entry) {
@@ -93,8 +111,22 @@ async function ensureReadPermission(handle: FileSystemFileHandle, prompt: boolea
   return requested === "granted";
 }
 
-function SummaryChip({ token }: { token: string }) {
-  return <span className="summary-chip">{token}</span>;
+function StatusBadge({ token, tone = "neutral" }: { token: string; tone?: "neutral" | "accent" | "warning" }) {
+  return <span className={`status-badge status-badge--${tone}`}>{token}</span>;
+}
+
+function FilterPillButton({
+  label,
+  onRemove,
+}: {
+  label: string;
+  onRemove: () => void;
+}) {
+  return (
+    <button className="summary-chip summary-chip--interactive" aria-label={`Remove filter ${label}`} onClick={onRemove}>
+      {label}
+    </button>
+  );
 }
 
 function Overlay({
@@ -138,7 +170,7 @@ export default function App() {
   const [filters, setFilters] = useState<FilterSpec>(EMPTY_FILTER);
   const [filterDraft, setFilterDraft] = useState<FilterSpec>(EMPTY_FILTER);
   const [selection, setSelection] = useState(0);
-  const [detailVisible, setDetailVisible] = useState(false);
+  const [detailVisible, setDetailVisible] = useState(true);
   const [paused, setPaused] = useState(false);
   const [overlay, setOverlay] = useState<OverlayName>(null);
   const [findQuery, setFindQuery] = useState("");
@@ -160,9 +192,14 @@ export default function App() {
   const deferredFindQuery = useDeferredValue(findQuery.trim());
   const candidates = openCandidates(catalog);
   const selectedEntry = visibleEntries[selection] ?? null;
-  const topCategoryValues = topCategories(entries, 12);
+  const topCategoryValues = topCategories(entries, 10);
   const timeContext = buildTimeContext(entries, selectedEntry);
   const activeView = savedViews.find((view) => view.name === activeViewName) ?? null;
+  const currentFavorite = currentFile
+    ? catalog.records.find((record) => record.id === currentFile.id)?.isFavorite ?? false
+    : false;
+  const quickFocusMode = getQuickFocusMode(filters);
+  const activeFilterPills = buildFilterPills(filters);
 
   useEffect(() => {
     writeCatalog(catalog);
@@ -212,6 +249,7 @@ export default function App() {
           if (nextEntries.length === 0) {
             return 0;
           }
+
           return Math.min(current, nextEntries.length - 1);
         });
       });
@@ -563,6 +601,19 @@ export default function App() {
     setStatusMessage(`Reloaded ${currentFile.label}`);
   }
 
+  async function copySelectedRaw(): Promise<void> {
+    if (!selectedEntry?.raw || !navigator.clipboard?.writeText) {
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(selectedEntry.raw);
+      setStatusMessage("Copied selected raw log line.");
+    } catch (error) {
+      setErrorMessage(error instanceof Error ? error.message : "Unable to copy the selected line.");
+    }
+  }
+
   function handleFileInputChange(event: ChangeEvent<HTMLInputElement>): void {
     const file = event.target.files?.[0];
     if (!file) {
@@ -606,6 +657,38 @@ export default function App() {
     setFilters(normalizeFilterSpec(next));
     setActiveViewName(null);
     setOverlay(null);
+  }
+
+  function setQuickFocus(mode: QuickFocusMode): void {
+    setFilters((current) => applyQuickFocus(current, mode));
+    setActiveViewName(null);
+    setStatusMessage(
+      mode === "all"
+        ? "Showing all severities."
+        : mode === "warnings"
+          ? "Focused on warning and error activity."
+          : "Focused on error and fatal activity.",
+    );
+  }
+
+  function applyTimePreset(minutes: number): void {
+    if (timeContext.latestTimestampMs === null) {
+      return;
+    }
+
+    setFilters((current) => buildPresetRange(current, timeContext.latestTimestampMs!, minutes));
+    setActiveViewName(null);
+    setStatusMessage(`Focused on the last ${minutes} minutes.`);
+  }
+
+  function applyThisHourPreset(): void {
+    if (timeContext.latestTimestampMs === null) {
+      return;
+    }
+
+    setFilters((current) => buildThisHourRange(current, timeContext.latestTimestampMs!));
+    setActiveViewName(null);
+    setStatusMessage("Focused on the current hour.");
   }
 
   function cycleDraftLevel(level: LogLevel): void {
@@ -654,6 +737,16 @@ export default function App() {
     setActiveViewName(null);
   }
 
+  function clearActiveFilter(label: string): void {
+    const pill = activeFilterPills.find((item) => item.label === label);
+    if (!pill) {
+      return;
+    }
+
+    setFilters((current) => removeFilterPill(current, pill));
+    setActiveViewName(null);
+  }
+
   function saveView(): void {
     const name = newViewName.trim();
     if (!name) {
@@ -666,23 +759,24 @@ export default function App() {
       filterSpec: normalizeFilterSpec(filters),
     };
 
-    setSavedViews((current) => [...current.filter((view) => view.name !== name), nextView].sort((left, right) => left.name.localeCompare(right.name)));
+    setSavedViews((current) =>
+      [...current.filter((view) => view.name !== name), nextView].sort((left, right) => left.name.localeCompare(right.name)),
+    );
     setSelectedViewName(name);
+    setActiveViewName(name);
     setStatusMessage(`Saved view ${name}`);
     setNewViewName("");
   }
 
   function activateView(name: string): void {
-    const view = savedViews.find((item) => item.name === name);
-    if (!view) {
+    const next = activateSavedView(savedViews, name);
+    if (!next.activeViewName) {
       return;
     }
 
-    setSavedViews((current) =>
-      current.map((item) => (item.name === name ? { ...item, enabled: true } : item)),
-    );
-    setFilters(normalizeFilterSpec(view.filterSpec));
-    setActiveViewName(name);
+    setSavedViews(next.savedViews);
+    setFilters(next.filterSpec);
+    setActiveViewName(next.activeViewName);
     setOverlay(null);
     setStatusMessage(`Activated view ${name}`);
   }
@@ -702,6 +796,7 @@ export default function App() {
       if (visibleEntries.length === 0) {
         return 0;
       }
+
       return Math.max(0, Math.min(current + delta, visibleEntries.length - 1));
     });
   }
@@ -719,9 +814,8 @@ export default function App() {
 
   function summaryText(): string {
     const fileName = currentFile?.label ?? "No file";
-    const favorite = currentFile ? catalog.records.find((record) => record.id === currentFile.id)?.isFavorite : false;
-    const count = `${visibleEntries.length}/${entries.length} lines`;
-    const state = paused ? "paused" : currentFile?.source === "handle" ? "live" : "static";
+    const count = `${visibleEntries.length}/${entries.length} visible`;
+    const state = paused ? "paused" : currentFile?.source === "handle" ? "following" : "static";
     const tokens = summarizeFilters(filters);
 
     if (activeView) {
@@ -732,22 +826,27 @@ export default function App() {
       tokens.push(`find:${deferredFindQuery} ${activeFindMatch}/${findMatches.length}`);
     }
 
-    return `${fileName}${favorite ? " ★" : ""} | ${count} | ${state} | ${tokens.length > 0 ? tokens.join(" | ") : "no filters"}`;
+    return `${fileName}${currentFavorite ? " ★" : ""} · ${count} · ${state}${tokens.length > 0 ? ` · ${tokens.join(" · ")}` : ""}`;
   }
 
-  const totalHeight = visibleEntries.length * ROW_HEIGHT;
-  const startIndex = Math.max(0, Math.floor(scrollTop / ROW_HEIGHT) - OVERSCAN);
-  const endIndex = Math.min(visibleEntries.length, Math.ceil((scrollTop + viewportHeight) / ROW_HEIGHT) + OVERSCAN);
-  const renderedRows = visibleEntries.slice(startIndex, endIndex);
+  const visibleWindow = computeVisibleWindow({
+    itemCount: visibleEntries.length,
+    rowHeight: ROW_HEIGHT,
+    viewportHeight,
+    scrollTop,
+    overscan: OVERSCAN,
+  });
+  const renderedRows = visibleEntries.slice(visibleWindow.startIndex, visibleWindow.endIndex);
 
   return (
     <div className="app-shell">
       <input ref={fileInputRef} type="file" accept=".log,.txt" hidden onChange={handleFileInputChange} />
 
       <header className="topbar">
-        <div>
+        <div className="topbar-copy">
           <p className="eyebrow">React log viewer</p>
           <h1>Logviewer</h1>
+          <p className="topbar-summary">{summaryText()}</p>
         </div>
         <div className="topbar-actions">
           <button className="action-button" onClick={() => setOverlay("open")}>
@@ -783,76 +882,238 @@ export default function App() {
         </div>
       </header>
 
-      <section className="summary-bar">
-        <span>{summaryText()}</span>
+      <section className="command-deck">
+        <div className="command-card">
+          <span className="command-label">Focus</span>
+          <div className="segmented-control" role="group" aria-label="Severity focus">
+            <button
+              className={`segment-button${quickFocusMode === "all" ? " segment-button--active" : ""}`}
+              aria-pressed={quickFocusMode === "all"}
+              onClick={() => setQuickFocus("all")}
+            >
+              All entries
+            </button>
+            <button
+              className={`segment-button${quickFocusMode === "warnings" ? " segment-button--active" : ""}`}
+              aria-pressed={quickFocusMode === "warnings"}
+              onClick={() => setQuickFocus("warnings")}
+            >
+              Warnings+
+            </button>
+            <button
+              className={`segment-button${quickFocusMode === "errors" ? " segment-button--active" : ""}`}
+              aria-pressed={quickFocusMode === "errors"}
+              onClick={() => setQuickFocus("errors")}
+            >
+              Errors only
+            </button>
+          </div>
+        </div>
+
+        <div className="command-card">
+          <span className="command-label">Time</span>
+          <div className="button-row">
+            <button className="ghost-button" disabled={timeContext.latestTimestampMs === null} onClick={() => applyTimePreset(5)}>
+              Last 5m
+            </button>
+            <button className="ghost-button" disabled={timeContext.latestTimestampMs === null} onClick={() => applyTimePreset(15)}>
+              Last 15m
+            </button>
+            <button className="ghost-button" disabled={timeContext.latestTimestampMs === null} onClick={applyThisHourPreset}>
+              This hour
+            </button>
+          </div>
+        </div>
+
+        <div className="command-card command-card--status">
+          <span className="command-label">State</span>
+          <div className="status-badge-row">
+            <StatusBadge token={currentFile ? currentFile.label : "no file"} tone="accent" />
+            <StatusBadge token={`${visibleEntries.length}/${entries.length} lines`} />
+            <StatusBadge
+              token={paused ? "paused" : currentFile?.source === "handle" ? "following" : "static"}
+              tone={paused ? "warning" : "neutral"}
+            />
+            {currentFavorite ? <StatusBadge token="favorite" /> : null}
+          </div>
+        </div>
+      </section>
+
+      <section className="saved-view-rail" role="region" aria-label="Saved views">
+        <div className="rail-header">
+          <div>
+            <p className="eyebrow">Saved views</p>
+            <strong>Daily contexts</strong>
+          </div>
+          <button className="ghost-button" onClick={() => setOverlay("views")}>
+            Manage
+          </button>
+        </div>
+        <div className="view-rail-list">
+          {savedViews.length === 0 ? (
+            <p className="rail-empty">Save a filter set once, then jump back to it from here.</p>
+          ) : (
+            savedViews.map((view) => (
+              <div
+                key={view.name}
+                className={`view-pill${activeViewName === view.name ? " view-pill--active" : ""}${view.enabled ? "" : " view-pill--disabled"}`}
+              >
+                <button className="view-pill-main" onClick={() => activateView(view.name)}>
+                  {view.name}
+                </button>
+                <button
+                  className="view-pill-toggle"
+                  onClick={() => (view.enabled ? disableView(view.name) : activateView(view.name))}
+                >
+                  {view.enabled ? "On" : "Off"}
+                </button>
+              </div>
+            ))
+          )}
+        </div>
+      </section>
+
+      <section className="active-filter-bar" role="region" aria-label="Active filters">
+        <div className="rail-header">
+          <div>
+            <p className="eyebrow">Active filters</p>
+            <strong>Fast noise control</strong>
+          </div>
+          <button
+            className="ghost-button"
+            onClick={() => {
+              setFilters(EMPTY_FILTER);
+              setActiveViewName(null);
+              setFindQuery("");
+              setStatusMessage("Cleared active filters and find state.");
+            }}
+          >
+            Clear all
+          </button>
+        </div>
         <div className="summary-chip-row">
-          {summarizeFilters(filters).map((token) => (
-            <SummaryChip key={token} token={token} />
+          {activeView ? <span className="summary-chip summary-chip--static">{`view:${activeView.name}`}</span> : null}
+          {activeFilterPills.map((pill) => (
+            <FilterPillButton key={pill.id} label={pill.label} onRemove={() => clearActiveFilter(pill.label)} />
           ))}
-          {deferredFindQuery ? <SummaryChip token={`find:${deferredFindQuery}`} /> : null}
-          {isPending ? <SummaryChip token="refreshing" /> : null}
+          {deferredFindQuery ? (
+            <FilterPillButton label={`find:${deferredFindQuery}`} onRemove={() => setFindQuery("")} />
+          ) : null}
+          {isPending ? <span className="summary-chip summary-chip--static">refreshing</span> : null}
+          {activeFilterPills.length === 0 && !deferredFindQuery && !activeView ? (
+            <span className="summary-empty">No active filters. Open a file and narrow only when you need to.</span>
+          ) : null}
         </div>
       </section>
 
       <section className="workspace">
-        <div className="viewer-panel">
-          <div className="table-header" role="row">
-            <span>Time</span>
-            <span>Level</span>
-            <span>Category</span>
-            <span>Message</span>
-          </div>
-          <div
-            ref={viewportRef}
-            className="table-viewport"
-            onScroll={(event) => setScrollTop(event.currentTarget.scrollTop)}
-            tabIndex={0}
-            onKeyDown={(event: ReactKeyboardEvent<HTMLDivElement>) => {
-              if (event.key === "ArrowDown") {
-                event.preventDefault();
-                moveSelection(1);
-              }
-            }}
-          >
-            {visibleEntries.length === 0 ? (
-              <div className="empty-state">
-                <p>No visible log entries.</p>
-                <span>Open a file, clear filters, or load the bundled sample.</span>
+        <div className="viewer-stack">
+          <section className="noise-bar">
+            <div className="rail-header">
+              <div>
+                <p className="eyebrow">Noise controls</p>
+                <strong>Quick category mute</strong>
               </div>
-            ) : (
-              <div className="table-spacer" style={{ height: totalHeight }}>
-                {renderedRows.map((entry, offset) => {
-                  const absoluteIndex = startIndex + offset;
-                  const selected = absoluteIndex === selection;
-                  return (
-                    <button
-                      key={entry.id}
-                      className={`log-row${selected ? " log-row--selected" : ""}`}
-                      style={{ transform: `translateY(${absoluteIndex * ROW_HEIGHT}px)` }}
-                      onClick={() => setSelection(absoluteIndex)}
-                    >
-                      <span>{formatRowTime(entry)}</span>
-                      <span style={{ color: entry.level ? LEVEL_COLORS[entry.level] : "#9fb4c8" }}>{entry.level ?? "RAW"}</span>
-                      <span>{entry.category ?? ""}</span>
-                      <span>{entry.message}</span>
-                    </button>
-                  );
-                })}
+              <button
+                className="ghost-button"
+                onClick={() => {
+                  setFilterDraft(filters);
+                  setOverlay("filters");
+                }}
+              >
+                Advanced filters
+              </button>
+            </div>
+            <div className="noise-chip-row">
+              {topCategoryValues.map((category) => (
+                <button
+                  key={category}
+                  className={`category-chip${filters.excludeCategories.includes(category) ? " category-chip--excluded" : ""}`}
+                  onClick={() => toggleExcludedCategory(category)}
+                >
+                  {category}
+                </button>
+              ))}
+            </div>
+          </section>
+
+          <div className="viewer-panel">
+            <div className="table-toolbar">
+              <div>
+                <strong>{visibleEntries.length}</strong>
+                <span> visible rows</span>
               </div>
-            )}
+              <div className="toolbar-actions">
+                {deferredFindQuery ? <span>{`find ${activeFindMatch}/${findMatches.length}`}</span> : null}
+                <button className="ghost-button" onClick={() => setDetailVisible((current) => !current)}>
+                  {detailVisible ? "Hide detail" : "Show detail"}
+                </button>
+              </div>
+            </div>
+            <div className="table-header" role="row">
+              <span>Time</span>
+              <span>Level</span>
+              <span>Category</span>
+              <span>Message</span>
+            </div>
+            <div
+              ref={viewportRef}
+              className="table-viewport"
+              onScroll={(event) => setScrollTop(event.currentTarget.scrollTop)}
+              tabIndex={0}
+              onKeyDown={(event: ReactKeyboardEvent<HTMLDivElement>) => {
+                if (event.key === "ArrowDown") {
+                  event.preventDefault();
+                  moveSelection(1);
+                }
+              }}
+            >
+              {visibleEntries.length === 0 ? (
+                <div className="empty-state">
+                  <p>No visible log entries.</p>
+                  <span>Open a file, clear filters, or load the bundled sample.</span>
+                </div>
+              ) : (
+                <div className="table-spacer" style={{ height: visibleWindow.totalHeight }}>
+                  {renderedRows.map((entry, offset) => {
+                    const absoluteIndex = visibleWindow.startIndex + offset;
+                    const selected = absoluteIndex === selection;
+                    return (
+                      <button
+                        key={entry.id}
+                        className={`log-row${selected ? " log-row--selected" : ""}`}
+                        style={{ transform: `translateY(${absoluteIndex * ROW_HEIGHT}px)` }}
+                        onClick={() => setSelection(absoluteIndex)}
+                      >
+                        <span>{formatRowTime(entry)}</span>
+                        <span style={{ color: entry.level ? LEVEL_COLORS[entry.level] : "#9fb4c8" }}>{entry.level ?? "RAW"}</span>
+                        <span>{entry.category ?? ""}</span>
+                        <span>{entry.message}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
         {detailVisible ? (
           <aside className="detail-panel">
             <div className="detail-header">
-              <h2>Detail</h2>
+              <div>
+                <h2>Detail</h2>
+                <p className="overlay-note">Selection follows the table without covering the rows.</p>
+              </div>
               <div className="detail-actions">
                 <button className="ghost-button" onClick={() => selectedEntry?.level && toggleExcludedLevel(selectedEntry.level)}>
                   Hide level
                 </button>
                 <button className="ghost-button" onClick={() => selectedEntry?.category && toggleExcludedCategory(selectedEntry.category)}>
                   Hide category
+                </button>
+                <button className="ghost-button" onClick={() => void copySelectedRaw()}>
+                  Copy raw
                 </button>
               </div>
             </div>
@@ -864,7 +1125,7 @@ export default function App() {
       <footer className="statusbar">
         <span>{statusMessage}</span>
         {errorMessage ? <span className="statusbar-error">{errorMessage}</span> : null}
-        <span className="shortcut-hint">o open · f filters · / find · v views · enter detail · space pause</span>
+        <span className="shortcut-hint">o open · f filters · / find · v views · enter detail · space pause · j/k move</span>
       </footer>
 
       {overlay === "open" ? (
@@ -882,7 +1143,7 @@ export default function App() {
                 Open bundled sample
               </button>
             </div>
-            <p className="overlay-note">Favorites and recents can be reopened without extra navigation when the browser still has file permission.</p>
+            <p className="overlay-note">Favorites and recents stay close when the browser still holds file permission.</p>
           </div>
 
           <div className="candidate-list">
@@ -921,7 +1182,7 @@ export default function App() {
       {overlay === "filters" ? (
         <Overlay
           title="Filters"
-          subtitle="Keep the surface compact. Levels, categories, text, and time windows live here until you need them."
+          subtitle="Keep the main surface lean. Use this workspace when you need exact category, level, text, or time control."
           onClose={() => setOverlay(null)}
         >
           <div className="overlay-grid">
@@ -952,7 +1213,7 @@ export default function App() {
 
             <section className="filter-section">
               <h3>Quick categories</h3>
-              <p>Common noisy categories stay one click away without pinning a sidebar open all day.</p>
+              <p>Frequent categories stay one click away so you can kill noise without leaving the list.</p>
               <div className="chip-grid">
                 {topCategoryValues.map((category) => (
                   <button
@@ -1062,7 +1323,7 @@ export default function App() {
       {overlay === "views" ? (
         <Overlay
           title="Saved views"
-          subtitle="Store named filter combinations so the daily jump between contexts stays quick."
+          subtitle="Store named filter combinations so daily context switching stays nearly instant."
           onClose={() => setOverlay(null)}
           width="compact"
         >
