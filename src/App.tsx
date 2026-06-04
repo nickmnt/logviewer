@@ -200,6 +200,8 @@ export default function App() {
     : false;
   const quickFocusMode = getQuickFocusMode(filters);
   const activeFilterPills = buildFilterPills(filters);
+  const hasActiveFilterState = activeFilterPills.length > 0 || Boolean(deferredFindQuery) || Boolean(activeView);
+  const showDetailPanel = detailVisible && Boolean(currentFile);
 
   useEffect(() => {
     writeCatalog(catalog);
@@ -939,76 +941,76 @@ export default function App() {
         </div>
       </section>
 
-      <section className="saved-view-rail" role="region" aria-label="Saved views">
-        <div className="rail-header">
-          <div>
-            <p className="eyebrow">Saved views</p>
-            <strong>Daily contexts</strong>
+      <section className="workspace-rails">
+        <section className={`saved-view-rail${savedViews.length === 0 ? " saved-view-rail--empty" : ""}`} role="region" aria-label="Saved views">
+          <div className="rail-header">
+            <div>
+              <p className="eyebrow">Saved views</p>
+              <strong>Daily contexts</strong>
+            </div>
+            <button className="ghost-button" onClick={() => setOverlay("views")}>
+              Manage
+            </button>
           </div>
-          <button className="ghost-button" onClick={() => setOverlay("views")}>
-            Manage
-          </button>
-        </div>
-        <div className="view-rail-list">
-          {savedViews.length === 0 ? (
-            <p className="rail-empty">Save a filter set once, then jump back to it from here.</p>
-          ) : (
-            savedViews.map((view) => (
-              <div
-                key={view.name}
-                className={`view-pill${activeViewName === view.name ? " view-pill--active" : ""}${view.enabled ? "" : " view-pill--disabled"}`}
-              >
-                <button className="view-pill-main" onClick={() => activateView(view.name)}>
-                  {view.name}
-                </button>
-                <button
-                  className="view-pill-toggle"
-                  onClick={() => (view.enabled ? disableView(view.name) : activateView(view.name))}
+          <div className="view-rail-list">
+            {savedViews.length === 0 ? (
+              <p className="rail-empty">Save a filter set once, then jump back to it from here.</p>
+            ) : (
+              savedViews.map((view) => (
+                <div
+                  key={view.name}
+                  className={`view-pill${activeViewName === view.name ? " view-pill--active" : ""}${view.enabled ? "" : " view-pill--disabled"}`}
                 >
-                  {view.enabled ? "On" : "Off"}
-                </button>
-              </div>
-            ))
-          )}
-        </div>
-      </section>
-
-      <section className="active-filter-bar" role="region" aria-label="Active filters">
-        <div className="rail-header">
-          <div>
-            <p className="eyebrow">Active filters</p>
-            <strong>Fast noise control</strong>
+                  <button className="view-pill-main" onClick={() => activateView(view.name)}>
+                    {view.name}
+                  </button>
+                  <button
+                    className="view-pill-toggle"
+                    onClick={() => (view.enabled ? disableView(view.name) : activateView(view.name))}
+                  >
+                    {view.enabled ? "On" : "Off"}
+                  </button>
+                </div>
+              ))
+            )}
           </div>
-          <button
-            className="ghost-button"
-            onClick={() => {
-              setFilters(EMPTY_FILTER);
-              setActiveViewName(null);
-              setFindQuery("");
-              setStatusMessage("Cleared active filters and find state.");
-            }}
-          >
-            Clear all
-          </button>
-        </div>
-        <div className="summary-chip-row">
-          {activeView ? <span className="summary-chip summary-chip--static">{`view:${activeView.name}`}</span> : null}
-          {activeFilterPills.map((pill) => (
-            <FilterPillButton key={pill.id} label={pill.label} onRemove={() => clearActiveFilter(pill.label)} />
-          ))}
-          {deferredFindQuery ? (
-            <FilterPillButton label={`find:${deferredFindQuery}`} onRemove={() => setFindQuery("")} />
-          ) : null}
-          {isPending ? <span className="summary-chip summary-chip--static">refreshing</span> : null}
-          {activeFilterPills.length === 0 && !deferredFindQuery && !activeView ? (
-            <span className="summary-empty">No active filters. Open a file and narrow only when you need to.</span>
-          ) : null}
-        </div>
+        </section>
+
+        <section className={`active-filter-bar${hasActiveFilterState ? "" : " active-filter-bar--empty"}`} role="region" aria-label="Active filters">
+          <div className="rail-header">
+            <div>
+              <p className="eyebrow">Active filters</p>
+              <strong>Fast noise control</strong>
+            </div>
+            <button
+              className="ghost-button"
+              onClick={() => {
+                setFilters(EMPTY_FILTER);
+                setActiveViewName(null);
+                setFindQuery("");
+                setStatusMessage("Cleared active filters and find state.");
+              }}
+            >
+              Clear all
+            </button>
+          </div>
+          <div className="summary-chip-row">
+            {activeView ? <span className="summary-chip summary-chip--static">{`view:${activeView.name}`}</span> : null}
+            {activeFilterPills.map((pill) => (
+              <FilterPillButton key={pill.id} label={pill.label} onRemove={() => clearActiveFilter(pill.label)} />
+            ))}
+            {deferredFindQuery ? (
+              <FilterPillButton label={`find:${deferredFindQuery}`} onRemove={() => setFindQuery("")} />
+            ) : null}
+            {isPending ? <span className="summary-chip summary-chip--static">refreshing</span> : null}
+            {!hasActiveFilterState ? <span className="summary-empty">No active filters.</span> : null}
+          </div>
+        </section>
       </section>
 
       <section className="workspace">
         <div className="viewer-stack">
-          <section className="noise-bar">
+          <section className={`noise-bar${topCategoryValues.length === 0 ? " noise-bar--empty" : ""}`}>
             <div className="rail-header">
               <div>
                 <p className="eyebrow">Noise controls</p>
@@ -1024,17 +1026,21 @@ export default function App() {
                 Advanced filters
               </button>
             </div>
-            <div className="noise-chip-row">
-              {topCategoryValues.map((category) => (
-                <button
-                  key={category}
-                  className={`category-chip${filters.excludeCategories.includes(category) ? " category-chip--excluded" : ""}`}
-                  onClick={() => toggleExcludedCategory(category)}
-                >
-                  {category}
-                </button>
-              ))}
-            </div>
+            {topCategoryValues.length === 0 ? (
+              <p className="rail-empty">Open a log to expose the most frequent noisy categories here.</p>
+            ) : (
+              <div className="noise-chip-row">
+                {topCategoryValues.map((category) => (
+                  <button
+                    key={category}
+                    className={`category-chip${filters.excludeCategories.includes(category) ? " category-chip--excluded" : ""}`}
+                    onClick={() => toggleExcludedCategory(category)}
+                  >
+                    {category}
+                  </button>
+                ))}
+              </div>
+            )}
           </section>
 
           <div className="viewer-panel">
@@ -1045,9 +1051,11 @@ export default function App() {
               </div>
               <div className="toolbar-actions">
                 {deferredFindQuery ? <span>{`find ${activeFindMatch}/${findMatches.length}`}</span> : null}
-                <button className="ghost-button" onClick={() => setDetailVisible((current) => !current)}>
-                  {detailVisible ? "Hide detail" : "Show detail"}
-                </button>
+                {currentFile ? (
+                  <button className="ghost-button" onClick={() => setDetailVisible((current) => !current)}>
+                    {showDetailPanel ? "Hide detail" : "Show detail"}
+                  </button>
+                ) : null}
               </div>
             </div>
             <div className="table-header" role="row">
@@ -1098,7 +1106,7 @@ export default function App() {
           </div>
         </div>
 
-        {detailVisible ? (
+        {showDetailPanel ? (
           <aside className="detail-panel">
             <div className="detail-header">
               <div>
