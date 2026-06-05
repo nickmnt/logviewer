@@ -1,72 +1,25 @@
 import {
   CSSProperties,
   ChangeEvent,
-  KeyboardEvent as ReactKeyboardEvent,
   ReactNode,
+  startTransition,
   useDeferredValue,
   useEffect,
+  useMemo,
   useRef,
   useState,
-  useTransition,
 } from "react";
 import sampleLogText from "../examples/nlog.log?raw";
-import {
-  applyFilter,
-  buildPresetRange,
-  buildThisHourRange,
-  buildTimeContext,
-  csvToList,
-  cycleInList,
-  EMPTY_FILTER,
-  entryContainsText,
-  formatDetailTime,
-  formatRowTime,
-  LEVEL_COLORS,
-  parseLogText,
-  summarizeFilters,
-  topCategories,
-} from "./lib/logs";
-import {
-  addRecent,
-  getFileHandle,
-  openCandidates,
-  putFileHandle,
-  readCatalog,
-  readSavedViews,
-  toggleFavorite,
-  writeCatalog,
-  writeSavedViews,
-} from "./lib/persistence";
-import {
-  activateSavedView,
-  applyQuickFocus,
-  buildFilterPills,
-  computeVisibleWindow,
-  getQuickFocusMode,
-  normalizeFilterSpec,
-  QuickFocusMode,
-  removeFilterPill,
-} from "./lib/workspace";
-import {
-  CatalogState,
-  CurrentFile,
-  FileRecord,
-  FilterSpec,
-  LOG_LEVELS,
-  LogEntry,
-  LogLevel,
-  OverlayName,
-  SavedView,
-} from "./types";
+import { formatDetailTime, formatRowTime, LEVEL_COLORS, parseLogText } from "./lib/logs";
+import { CurrentFile, LOG_LEVELS, LogEntry, LogLevel } from "./types";
 
-const ROW_HEIGHT = 34;
-const OVERSCAN = 8;
-const SAMPLE_RECORD: FileRecord = {
-  id: "sample:nlog",
-  label: "examples/nlog.log",
-  source: "sample",
-  isFavorite: false,
-};
+const ROW_HEIGHT = 44;
+const OVERSCAN = 14;
+const CHROME_IDLE_MS = 1800;
+const FILTER_LEVELS = [...LOG_LEVELS, "RAW"] as const;
+
+type OverlayKind = "palette" | "search" | "filters" | null;
+type VisibleLevel = (typeof FILTER_LEVELS)[number];
 
 function buildDetailText(entry: LogEntry | null, selectedIndex: number, totalEntries: number): string {
   if (!entry) {
@@ -87,388 +40,158 @@ function buildDetailText(entry: LogEntry | null, selectedIndex: number, totalEnt
   ].join("\n");
 }
 
-function isEditableTarget(target: EventTarget | null): boolean {
+function getEntryLevel(entry: LogEntry): VisibleLevel {
+  return entry.level ?? "RAW";
+}
+
+function matchesQuery(entry: LogEntry, query: string): boolean {
+  if (!query) {
+    return true;
+  }
+
+  const haystack = [entry.timestampText, entry.level ?? "RAW", entry.category ?? "", entry.message, entry.raw].join("\n").toLowerCase();
+  return haystack.includes(query);
+}
+
+function renderHighlightedText(text: string, query: string): ReactNode {
+  if (!query) {
+    return text;
+  }
+
+  const source = text.toLowerCase();
+  const matchIndex = source.indexOf(query);
+  if (matchIndex === -1) {
+    return text;
+  }
+
+  const matchEnd = matchIndex + query.length;
+  return [
+    text.slice(0, matchIndex),
+    <mark key={`${text}-${matchIndex}`}>{text.slice(matchIndex, matchEnd)}</mark>,
+    text.slice(matchEnd),
+  ];
+}
+
+function isTypingTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) {
     return false;
   }
 
-  const tag = target.tagName;
-  return tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || target.isContentEditable;
+  return target.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName);
 }
 
-async function ensureReadPermission(handle: FileSystemFileHandle, prompt: boolean): Promise<boolean> {
-  const descriptor = { mode: "read" as const };
-  const current = await handle.queryPermission?.(descriptor);
-  if (current === "granted") {
-    return true;
+function formatCount(value: number): string {
+  return new Intl.NumberFormat().format(value);
+}
+
+function formatFileSize(size: number): string {
+  if (size < 1024) {
+    return `${size} B`;
   }
 
-  if (!prompt) {
-    return false;
+  if (size < 1024 * 1024) {
+    return `${(size / 1024).toFixed(1)} KB`;
   }
 
-  const requested = await handle.requestPermission?.(descriptor);
-  return requested === "granted";
-}
-
-function StatusBadge({ token, tone = "neutral" }: { token: string; tone?: "neutral" | "accent" | "warning" }) {
-  return <span className={`status-badge status-badge--${tone}`}>{token}</span>;
-}
-
-function FilterPillButton({
-  label,
-  onRemove,
-}: {
-  label: string;
-  onRemove: () => void;
-}) {
-  return (
-    <button className="summary-chip summary-chip--interactive" aria-label={`Remove filter ${label}`} onClick={onRemove}>
-      {label}
-    </button>
-  );
-}
-
-function Overlay({
-  title,
-  subtitle,
-  onClose,
-  width = "wide",
-  children,
-}: {
-  title: string;
-  subtitle: string;
-  onClose: () => void;
-  width?: "wide" | "compact";
-  children: ReactNode;
-}) {
-  return (
-    <div className="overlay-shell" role="dialog" aria-modal="true">
-      <button className="overlay-scrim" aria-label="Close" onClick={onClose} />
-      <div className={`overlay-card overlay-card--${width}`}>
-        <div className="overlay-header">
-          <div>
-            <h2>{title}</h2>
-            <p>{subtitle}</p>
-          </div>
-          <button className="ghost-button" onClick={onClose}>
-            Close
-          </button>
-        </div>
-        {children}
-      </div>
-    </div>
-  );
+  return `${(size / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 export default function App() {
-  const [catalog, setCatalog] = useState<CatalogState>(() => readCatalog());
-  const [savedViews, setSavedViews] = useState<SavedView[]>(() => readSavedViews());
   const [currentFile, setCurrentFile] = useState<CurrentFile | null>(null);
   const [entries, setEntries] = useState<LogEntry[]>([]);
-  const [visibleEntries, setVisibleEntries] = useState<LogEntry[]>([]);
-  const [filters, setFilters] = useState<FilterSpec>(EMPTY_FILTER);
-  const [filterDraft, setFilterDraft] = useState<FilterSpec>(EMPTY_FILTER);
-  const [selection, setSelection] = useState(0);
-  const [detailVisible, setDetailVisible] = useState(true);
-  const [paused, setPaused] = useState(false);
-  const [overlay, setOverlay] = useState<OverlayName>(null);
-  const [findQuery, setFindQuery] = useState("");
-  const [findDraft, setFindDraft] = useState("");
-  const [findMatches, setFindMatches] = useState<number[]>([]);
-  const [activeFindMatch, setActiveFindMatch] = useState(0);
-  const [activeViewName, setActiveViewName] = useState<string | null>(null);
-  const [newViewName, setNewViewName] = useState("");
-  const [selectedCandidateId, setSelectedCandidateId] = useState<string | null>(null);
-  const [selectedViewName, setSelectedViewName] = useState<string | null>(null);
-  const [scrollTop, setScrollTop] = useState(0);
-  const [viewportHeight, setViewportHeight] = useState(480);
+  const [selectionId, setSelectionId] = useState<number | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [statusMessage, setStatusMessage] = useState("Open a log file or the bundled sample to begin.");
-  const [isPending, startTransition] = useTransition();
+  const [statusMessage, setStatusMessage] = useState("Open a log file or the bundled sample.");
+  const [query, setQuery] = useState("");
+  const [commandQuery, setCommandQuery] = useState("");
+  const [activeLevels, setActiveLevels] = useState<VisibleLevel[]>([...FILTER_LEVELS]);
+  const [activeOverlay, setActiveOverlay] = useState<OverlayKind>(null);
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
+  const [isChromeVisible, setIsChromeVisible] = useState(true);
+  const [scrollTop, setScrollTop] = useState(0);
+  const [viewportHeight, setViewportHeight] = useState(0);
 
+  const deferredQuery = useDeferredValue(query.trim().toLowerCase());
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const viewportRef = useRef<HTMLDivElement | null>(null);
-  const deferredFindQuery = useDeferredValue(findQuery.trim());
-  const candidates = openCandidates(catalog);
-  const selectedEntry = visibleEntries[selection] ?? null;
-  const topCategoryValues = topCategories(entries, 10);
-  const timeContext = buildTimeContext(entries, selectedEntry);
-  const activeView = savedViews.find((view) => view.name === activeViewName) ?? null;
-  const currentFavorite = currentFile
-    ? catalog.records.find((record) => record.id === currentFile.id)?.isFavorite ?? false
-    : false;
-  const quickFocusMode = getQuickFocusMode(filters);
-  const activeFilterPills = buildFilterPills(filters);
-  const hasActiveFilterState = activeFilterPills.length > 0 || Boolean(deferredFindQuery) || Boolean(activeView);
-  const showDetailPanel = detailVisible && Boolean(currentFile);
+  const scrollViewportRef = useRef<HTMLDivElement | null>(null);
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
+  const commandInputRef = useRef<HTMLInputElement | null>(null);
+  const chromeTimerRef = useRef<number | null>(null);
 
-  useEffect(() => {
-    writeCatalog(catalog);
-  }, [catalog]);
+  const filteredEntries = useMemo(() => {
+    return entries.filter((entry) => activeLevels.includes(getEntryLevel(entry)) && matchesQuery(entry, deferredQuery));
+  }, [activeLevels, deferredQuery, entries]);
 
-  useEffect(() => {
-    writeSavedViews(savedViews);
-  }, [savedViews]);
+  const selectedIndex = filteredEntries.findIndex((entry) => entry.id === selectionId);
+  const selectedEntry = selectedIndex === -1 ? null : filteredEntries[selectedIndex] ?? null;
+  const totalHeight = filteredEntries.length * ROW_HEIGHT;
+  const startIndex = Math.max(0, Math.floor(scrollTop / ROW_HEIGHT) - OVERSCAN);
+  const visibleRowCount = Math.ceil(viewportHeight / ROW_HEIGHT) + OVERSCAN * 2;
+  const endIndex = Math.min(filteredEntries.length, startIndex + visibleRowCount);
+  const visibleEntries = filteredEntries.slice(startIndex, endIndex);
+  const topSpacerHeight = startIndex * ROW_HEIGHT;
+  const bottomSpacerHeight = Math.max(0, totalHeight - topSpacerHeight - visibleEntries.length * ROW_HEIGHT);
+  const isAllLevelsActive = activeLevels.length === FILTER_LEVELS.length;
+  const hasLoadedEntries = entries.length > 0;
+  const resultLabel = hasLoadedEntries
+    ? `${formatCount(filteredEntries.length)} of ${formatCount(entries.length)} lines`
+    : "No log loaded";
 
-  useEffect(() => {
-    if (selectedCandidateId && candidates.some((candidate) => candidate.id === selectedCandidateId)) {
+  function clearChromeTimer(): void {
+    if (chromeTimerRef.current !== null) {
+      window.clearTimeout(chromeTimerRef.current);
+      chromeTimerRef.current = null;
+    }
+  }
+
+  function scheduleChromeHide(): void {
+    clearChromeTimer();
+    if (activeOverlay || isDetailOpen) {
       return;
     }
 
-    setSelectedCandidateId(candidates[0]?.id ?? SAMPLE_RECORD.id);
-  }, [candidates, selectedCandidateId]);
+    chromeTimerRef.current = window.setTimeout(() => {
+      setIsChromeVisible(false);
+    }, CHROME_IDLE_MS);
+  }
 
-  useEffect(() => {
-    if (selectedViewName && savedViews.some((view) => view.name === selectedViewName)) {
-      return;
+  function revealChrome(sticky = false): void {
+    setIsChromeVisible(true);
+    clearChromeTimer();
+    if (!sticky) {
+      scheduleChromeHide();
     }
+  }
 
-    setSelectedViewName(savedViews[0]?.name ?? null);
-  }, [savedViews, selectedViewName]);
+  function closeTransientUi(): void {
+    setActiveOverlay(null);
+    setIsDetailOpen(false);
+  }
 
-  useEffect(() => {
-    if (!viewportRef.current) {
-      return;
-    }
+  function resetViewState(): void {
+    setQuery("");
+    setCommandQuery("");
+    setActiveLevels([...FILTER_LEVELS]);
+    closeTransientUi();
+    setScrollTop(0);
+  }
 
-    const observer = new ResizeObserver((entriesList) => {
-      const nextHeight = entriesList[0]?.contentRect.height;
-      if (nextHeight) {
-        setViewportHeight(nextHeight);
-      }
-    });
-    observer.observe(viewportRef.current);
-    return () => observer.disconnect();
-  }, []);
+  function loadEntries(file: CurrentFile, text: string, nextStatus: string): void {
+    const parsedEntries = parseLogText(text);
 
-  useEffect(() => {
-    try {
-      const nextEntries = applyFilter(entries, filters, timeContext.referenceDate);
-      startTransition(() => {
-        setVisibleEntries(nextEntries);
-        setSelection((current) => {
-          if (nextEntries.length === 0) {
-            return 0;
-          }
-
-          return Math.min(current, nextEntries.length - 1);
-        });
-      });
+    startTransition(() => {
+      setCurrentFile(file);
+      setEntries(parsedEntries);
+      setSelectionId(parsedEntries[0]?.id ?? null);
       setErrorMessage(null);
-    } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : "Unable to apply filters.");
-    }
-  }, [entries, filters, timeContext.referenceDate, startTransition]);
-
-  useEffect(() => {
-    const query = deferredFindQuery.toLowerCase();
-    if (!query) {
-      setFindMatches([]);
-      setActiveFindMatch(0);
-      return;
-    }
-
-    const matches = visibleEntries
-      .map((entry, index) => (entryContainsText(entry, query) ? index : -1))
-      .filter((index) => index >= 0);
-
-    setFindMatches(matches);
-    if (matches.length === 0) {
-      setActiveFindMatch(0);
-      return;
-    }
-
-    const exactMatch = matches.indexOf(selection);
-    if (exactMatch >= 0) {
-      setActiveFindMatch(exactMatch + 1);
-      return;
-    }
-
-    const nextMatchIndex = matches.findIndex((index) => index >= selection);
-    const target = nextMatchIndex >= 0 ? nextMatchIndex : 0;
-    setActiveFindMatch(target + 1);
-    setSelection(matches[target]);
-  }, [visibleEntries, selection, deferredFindQuery]);
-
-  useEffect(() => {
-    if (!currentFile || currentFile.source !== "handle" || paused) {
-      return;
-    }
-
-    const timer = window.setInterval(async () => {
-      try {
-        const handle = await getFileHandle(currentFile.id);
-        if (!handle || !(await ensureReadPermission(handle, false))) {
-          return;
-        }
-
-        const file = await handle.getFile();
-        if (file.size === currentFile.size && file.lastModified === currentFile.lastModified) {
-          return;
-        }
-
-        const text = await file.text();
-        startTransition(() => {
-          setEntries(parseLogText(text));
-          setCurrentFile((existing) =>
-            existing
-              ? {
-                  ...existing,
-                  size: file.size,
-                  lastModified: file.lastModified,
-                }
-              : existing,
-          );
-        });
-        setStatusMessage(`Following ${currentFile.label}`);
-      } catch (error) {
-        setErrorMessage(error instanceof Error ? error.message : "Unable to follow the current file.");
-      }
-    }, 1000);
-
-    return () => window.clearInterval(timer);
-  }, [currentFile, paused, startTransition]);
-
-  useEffect(() => {
-    if (!viewportRef.current || visibleEntries.length === 0) {
-      return;
-    }
-
-    const rowTop = selection * ROW_HEIGHT;
-    const rowBottom = rowTop + ROW_HEIGHT;
-    const viewport = viewportRef.current;
-    const currentTop = viewport.scrollTop;
-    const currentBottom = currentTop + viewport.clientHeight;
-
-    if (rowTop < currentTop) {
-      viewport.scrollTop = rowTop;
-    } else if (rowBottom > currentBottom) {
-      viewport.scrollTop = rowBottom - viewport.clientHeight;
-    }
-  }, [selection, visibleEntries.length]);
-
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (isEditableTarget(event.target)) {
-        return;
-      }
-
-      if (event.key === "Escape" && overlay) {
-        event.preventDefault();
-        setOverlay(null);
-        return;
-      }
-
-      if (event.key === "o") {
-        event.preventDefault();
-        setOverlay("open");
-        return;
-      }
-
-      if (event.key === "f") {
-        event.preventDefault();
-        setFilterDraft(filters);
-        setOverlay("filters");
-        return;
-      }
-
-      if (event.key === "v") {
-        event.preventDefault();
-        setOverlay("views");
-        return;
-      }
-
-      if (event.key === "/") {
-        event.preventDefault();
-        setFindDraft(findQuery);
-        setOverlay("find");
-        return;
-      }
-
-      if (event.key === "r") {
-        event.preventDefault();
-        void reloadCurrentFile();
-        return;
-      }
-
-      if (event.key === " ") {
-        event.preventDefault();
-        setPaused((current) => !current);
-        return;
-      }
-
-      if (event.key === "Enter") {
-        event.preventDefault();
-        setDetailVisible((current) => !current);
-        return;
-      }
-
-      if (event.key === "j" || event.key === "ArrowDown") {
-        event.preventDefault();
-        moveSelection(1);
-        return;
-      }
-
-      if (event.key === "k" || event.key === "ArrowUp") {
-        event.preventDefault();
-        moveSelection(-1);
-        return;
-      }
-
-      if (event.key === "PageDown") {
-        event.preventDefault();
-        moveSelection(Math.max(1, Math.floor(viewportHeight / ROW_HEIGHT) - 1));
-        return;
-      }
-
-      if (event.key === "PageUp") {
-        event.preventDefault();
-        moveSelection(-Math.max(1, Math.floor(viewportHeight / ROW_HEIGHT) - 1));
-        return;
-      }
-
-      if (event.key === "Home") {
-        event.preventDefault();
-        setSelection(0);
-        return;
-      }
-
-      if (event.key === "End") {
-        event.preventDefault();
-        setSelection(Math.max(0, visibleEntries.length - 1));
-        return;
-      }
-
-      if (event.key === "e" && selectedEntry?.level) {
-        event.preventDefault();
-        toggleExcludedLevel(selectedEntry.level);
-        return;
-      }
-
-      if (event.key === "x" && selectedEntry?.category) {
-        event.preventDefault();
-        toggleExcludedCategory(selectedEntry.category);
-        return;
-      }
-
-      if (event.key === "n") {
-        event.preventDefault();
-        moveFind(1);
-        return;
-      }
-
-      if (event.key === "N") {
-        event.preventDefault();
-        moveFind(-1);
-      }
-    };
-
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [filters, findQuery, overlay, selectedEntry, viewportHeight, visibleEntries.length]);
+      setStatusMessage(nextStatus);
+      resetViewState();
+    });
+  }
 
   async function openFromPicker(): Promise<void> {
+    revealChrome(true);
+
     try {
       if (typeof window.showOpenFilePicker === "function") {
         const [handle] = await window.showOpenFilePicker({
@@ -487,15 +210,17 @@ export default function App() {
           return;
         }
 
-        const record: FileRecord = {
-          id: `handle:${crypto.randomUUID()}`,
-          label: handle.name,
-          source: "handle",
-          isFavorite: false,
-        };
-
-        await putFileHandle(record.id, handle);
-        await loadHandleRecord(record, handle, true);
+        const file = await handle.getFile();
+        loadEntries(
+          {
+            label: file.name,
+            source: "file",
+            size: file.size,
+            lastModified: file.lastModified,
+          },
+          await file.text(),
+          `Opened ${file.name}`,
+        );
         return;
       }
 
@@ -505,115 +230,18 @@ export default function App() {
     }
   }
 
-  async function openSample(): Promise<void> {
-    const record = catalog.records.find((item) => item.id === SAMPLE_RECORD.id) ?? SAMPLE_RECORD;
-    setCatalog((current) => addRecent(current, record));
-    startTransition(() => {
-      setCurrentFile({
-        id: SAMPLE_RECORD.id,
-        label: SAMPLE_RECORD.label,
+  function openSample(): void {
+    revealChrome(true);
+    loadEntries(
+      {
+        label: "examples/nlog.log",
         source: "sample",
         size: sampleLogText.length,
         lastModified: 0,
-      });
-      setEntries(parseLogText(sampleLogText));
-      setSelection(0);
-      setPaused(false);
-    });
-    setStatusMessage("Opened bundled sample log.");
-    setOverlay(null);
-  }
-
-  async function loadHandleRecord(record: FileRecord, handle: FileSystemFileHandle, trackRecent: boolean): Promise<void> {
-    const hasPermission = await ensureReadPermission(handle, true);
-    if (!hasPermission) {
-      setErrorMessage(`Read permission was not granted for ${record.label}.`);
-      return;
-    }
-
-    const file = await handle.getFile();
-    const text = await file.text();
-
-    if (trackRecent) {
-      setCatalog((current) => addRecent(current, record));
-    }
-
-    startTransition(() => {
-      setCurrentFile({
-        id: record.id,
-        label: record.label,
-        source: "handle",
-        size: file.size,
-        lastModified: file.lastModified,
-      });
-      setEntries(parseLogText(text));
-      setSelection(0);
-      setPaused(false);
-    });
-    setStatusMessage(`Opened ${record.label}`);
-    setOverlay(null);
-  }
-
-  async function openCandidate(record: FileRecord): Promise<void> {
-    try {
-      if (record.source === "sample") {
-        await openSample();
-        return;
-      }
-
-      const handle = await getFileHandle(record.id);
-      if (!handle) {
-        setErrorMessage(`The saved handle for ${record.label} is no longer available. Open it again from the picker.`);
-        return;
-      }
-
-      await loadHandleRecord(record, handle, true);
-    } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : "Unable to open the selected file.");
-    }
-  }
-
-  async function reloadCurrentFile(): Promise<void> {
-    if (!currentFile) {
-      return;
-    }
-
-    if (currentFile.source === "sample") {
-      startTransition(() => setEntries(parseLogText(sampleLogText)));
-      setStatusMessage("Reloaded bundled sample log.");
-      return;
-    }
-
-    const handle = await getFileHandle(currentFile.id);
-    if (!handle) {
-      setErrorMessage(`The saved handle for ${currentFile.label} is no longer available. Open it again from the picker.`);
-      return;
-    }
-
-    await loadHandleRecord(
-      {
-        id: currentFile.id,
-        label: currentFile.label,
-        source: currentFile.source,
-        isFavorite: catalog.records.find((record) => record.id === currentFile.id)?.isFavorite ?? false,
       },
-      handle,
-      false,
+      sampleLogText,
+      "Opened bundled sample log.",
     );
-    setStatusMessage(`Reloaded ${currentFile.label}`);
-  }
-
-  async function copySelectedRaw(): Promise<void> {
-    if (!selectedEntry?.raw || !navigator.clipboard?.writeText) {
-      return;
-    }
-
-    try {
-      await navigator.clipboard.writeText(selectedEntry.raw);
-      setStatusMessage("Copied selected raw log line.");
-    } catch (error) {
-      setErrorMessage(error instanceof Error ? error.message : "Unable to copy the selected line.");
-    }
   }
 
   function handleFileInputChange(event: ChangeEvent<HTMLInputElement>): void {
@@ -625,27 +253,16 @@ export default function App() {
     file
       .text()
       .then((text) => {
-        const record: FileRecord = {
-          id: `fallback:${crypto.randomUUID()}`,
-          label: file.name,
-          source: "sample",
-          isFavorite: false,
-        };
-        setCatalog((current) => addRecent(current, record));
-        startTransition(() => {
-          setCurrentFile({
-            id: record.id,
-            label: record.label,
-            source: "sample",
+        loadEntries(
+          {
+            label: file.name,
+            source: "file",
             size: file.size,
             lastModified: file.lastModified,
-          });
-          setEntries(parseLogText(text));
-          setSelection(0);
-          setPaused(true);
-        });
-        setStatusMessage(`Opened ${file.name} from browser upload.`);
-        setOverlay(null);
+          },
+          text,
+          `Opened ${file.name}`,
+        );
       })
       .catch((error) => {
         setErrorMessage(error instanceof Error ? error.message : "Unable to read the selected file.");
@@ -655,763 +272,482 @@ export default function App() {
       });
   }
 
-  function applyCurrentFilters(next: FilterSpec): void {
-    setFilters(normalizeFilterSpec(next));
-    setActiveViewName(null);
-    setOverlay(null);
-  }
-
-  function setQuickFocus(mode: QuickFocusMode): void {
-    setFilters((current) => applyQuickFocus(current, mode));
-    setActiveViewName(null);
-    setStatusMessage(
-      mode === "all"
-        ? "Showing all severities."
-        : mode === "warnings"
-          ? "Focused on warning and error activity."
-          : "Focused on error and fatal activity.",
-    );
-  }
-
-  function applyTimePreset(minutes: number): void {
-    if (timeContext.latestTimestampMs === null) {
+  function moveSelection(step: number): void {
+    if (filteredEntries.length === 0) {
       return;
     }
 
-    setFilters((current) => buildPresetRange(current, timeContext.latestTimestampMs!, minutes));
-    setActiveViewName(null);
-    setStatusMessage(`Focused on the last ${minutes} minutes.`);
-  }
-
-  function applyThisHourPreset(): void {
-    if (timeContext.latestTimestampMs === null) {
+    if (selectedIndex === -1) {
+      setSelectionId(filteredEntries[0]?.id ?? null);
       return;
     }
 
-    setFilters((current) => buildThisHourRange(current, timeContext.latestTimestampMs!));
-    setActiveViewName(null);
-    setStatusMessage("Focused on the current hour.");
+    const nextIndex = Math.min(filteredEntries.length - 1, Math.max(0, selectedIndex + step));
+    setSelectionId(filteredEntries[nextIndex]?.id ?? null);
   }
 
-  function cycleDraftLevel(level: LogLevel): void {
-    setFilterDraft((current) => {
-      if (current.includeLevels.includes(level)) {
-        return {
-          ...current,
-          includeLevels: current.includeLevels.filter((item) => item !== level),
-          excludeLevels: cycleInList(current.excludeLevels, level),
-        };
+  function toggleLevel(level: VisibleLevel): void {
+    setActiveLevels((currentLevels) => {
+      if (currentLevels.includes(level)) {
+        if (currentLevels.length === 1) {
+          return currentLevels;
+        }
+
+        return currentLevels.filter((currentLevel) => currentLevel !== level);
       }
 
-      if (current.excludeLevels.includes(level)) {
-        return {
-          ...current,
-          excludeLevels: current.excludeLevels.filter((item) => item !== level),
-        };
-      }
-
-      return {
-        ...current,
-        includeLevels: cycleInList(current.includeLevels, level),
-      };
+      return [...currentLevels, level];
     });
   }
 
-  function toggleDraftExcludedCategory(category: string): void {
-    setFilterDraft((current) => ({
-      ...current,
-      excludeCategories: cycleInList(current.excludeCategories, category),
-    }));
-  }
-
-  function toggleExcludedLevel(level: LogLevel): void {
-    setFilters((current) => normalizeFilterSpec({ ...current, excludeLevels: cycleInList(current.excludeLevels, level) }));
-    setActiveViewName(null);
-  }
-
-  function toggleExcludedCategory(category: string): void {
-    setFilters((current) =>
-      normalizeFilterSpec({
-        ...current,
-        excludeCategories: cycleInList(current.excludeCategories, category),
-      }),
-    );
-    setActiveViewName(null);
-  }
-
-  function clearActiveFilter(label: string): void {
-    const pill = activeFilterPills.find((item) => item.label === label);
-    if (!pill) {
+  useEffect(() => {
+    if (filteredEntries.length === 0) {
+      setSelectionId(null);
       return;
     }
 
-    setFilters((current) => removeFilterPill(current, pill));
-    setActiveViewName(null);
-  }
+    if (selectionId === null || !filteredEntries.some((entry) => entry.id === selectionId)) {
+      setSelectionId(filteredEntries[0]?.id ?? null);
+    }
+  }, [filteredEntries, selectionId]);
 
-  function saveView(): void {
-    const name = newViewName.trim();
-    if (!name) {
+  useEffect(() => {
+    const viewport = scrollViewportRef.current;
+    if (!viewport || selectedIndex === -1) {
       return;
     }
 
-    const nextView: SavedView = {
-      name,
-      enabled: true,
-      filterSpec: normalizeFilterSpec(filters),
+    const itemTop = selectedIndex * ROW_HEIGHT;
+    const itemBottom = itemTop + ROW_HEIGHT;
+
+    if (itemTop < viewport.scrollTop) {
+      viewport.scrollTop = itemTop;
+      return;
+    }
+
+    if (itemBottom > viewport.scrollTop + viewport.clientHeight) {
+      viewport.scrollTop = itemBottom - viewport.clientHeight;
+    }
+  }, [selectedIndex]);
+
+  useEffect(() => {
+    const viewport = scrollViewportRef.current;
+    if (!viewport) {
+      return;
+    }
+
+    const updateViewportSize = (): void => {
+      setViewportHeight(viewport.clientHeight);
     };
 
-    setSavedViews((current) =>
-      [...current.filter((view) => view.name !== name), nextView].sort((left, right) => left.name.localeCompare(right.name)),
-    );
-    setSelectedViewName(name);
-    setActiveViewName(name);
-    setStatusMessage(`Saved view ${name}`);
-    setNewViewName("");
-  }
+    updateViewportSize();
+    const observer = new ResizeObserver(updateViewportSize);
+    observer.observe(viewport);
 
-  function activateView(name: string): void {
-    const next = activateSavedView(savedViews, name);
-    if (!next.activeViewName) {
-      return;
+    return () => {
+      observer.disconnect();
+    };
+  }, []);
+
+  useEffect(() => {
+    revealChrome();
+
+    const onActivity = (): void => revealChrome();
+
+    window.addEventListener("mousemove", onActivity);
+    window.addEventListener("touchstart", onActivity);
+    window.addEventListener("focusin", onActivity);
+
+    return () => {
+      window.removeEventListener("mousemove", onActivity);
+      window.removeEventListener("touchstart", onActivity);
+      window.removeEventListener("focusin", onActivity);
+      clearChromeTimer();
+    };
+  }, [activeOverlay, isDetailOpen]);
+
+  useEffect(() => {
+    if (activeOverlay === "search") {
+      window.requestAnimationFrame(() => {
+        searchInputRef.current?.focus();
+        searchInputRef.current?.select();
+      });
     }
 
-    setSavedViews(next.savedViews);
-    setFilters(next.filterSpec);
-    setActiveViewName(next.activeViewName);
-    setOverlay(null);
-    setStatusMessage(`Activated view ${name}`);
-  }
-
-  function disableView(name: string): void {
-    setSavedViews((current) =>
-      current.map((item) => (item.name === name ? { ...item, enabled: false } : item)),
-    );
-    if (activeViewName === name) {
-      setActiveViewName(null);
+    if (activeOverlay === "palette") {
+      window.requestAnimationFrame(() => {
+        commandInputRef.current?.focus();
+        commandInputRef.current?.select();
+      });
     }
-    setStatusMessage(`Disabled view ${name}`);
-  }
+  }, [activeOverlay]);
 
-  function moveSelection(delta: number): void {
-    setSelection((current) => {
-      if (visibleEntries.length === 0) {
-        return 0;
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent): void => {
+      const targetIsTyping = isTypingTarget(event.target);
+
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "o") {
+        event.preventDefault();
+        void openFromPicker();
+        return;
       }
 
-      return Math.max(0, Math.min(current + delta, visibleEntries.length - 1));
-    });
-  }
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        revealChrome(true);
+        setCommandQuery("");
+        setActiveOverlay("palette");
+        return;
+      }
 
-  function moveFind(step: number): void {
-    if (findMatches.length === 0) {
-      return;
-    }
+      if (event.key === "Escape") {
+        if (activeOverlay) {
+          event.preventDefault();
+          setActiveOverlay(null);
+          return;
+        }
 
-    const base = activeFindMatch <= 0 ? 0 : activeFindMatch - 1;
-    const next = ((base + step) % findMatches.length + findMatches.length) % findMatches.length;
-    setActiveFindMatch(next + 1);
-    setSelection(findMatches[next]);
-  }
+        if (isDetailOpen) {
+          event.preventDefault();
+          setIsDetailOpen(false);
+          return;
+        }
 
-  function summaryText(): string {
-    const fileName = currentFile?.label ?? "No file";
-    const count = `${visibleEntries.length}/${entries.length} visible`;
-    const state = paused ? "paused" : currentFile?.source === "handle" ? "following" : "static";
-    const tokens = summarizeFilters(filters);
+        if (query) {
+          event.preventDefault();
+          setQuery("");
+        }
 
-    if (activeView) {
-      tokens.unshift(`view:${activeView.name}`);
-    }
+        return;
+      }
 
-    if (deferredFindQuery) {
-      tokens.push(`find:${deferredFindQuery} ${activeFindMatch}/${findMatches.length}`);
-    }
+      if (targetIsTyping) {
+        return;
+      }
 
-    return `${fileName}${currentFavorite ? " ★" : ""} · ${count} · ${state}${tokens.length > 0 ? ` · ${tokens.join(" · ")}` : ""}`;
-  }
+      if (event.key === "/") {
+        event.preventDefault();
+        revealChrome(true);
+        setActiveOverlay("search");
+        return;
+      }
 
-  const visibleWindow = computeVisibleWindow({
-    itemCount: visibleEntries.length,
-    rowHeight: ROW_HEIGHT,
-    viewportHeight,
-    scrollTop,
-    overscan: OVERSCAN,
-  });
-  const renderedRows = visibleEntries.slice(visibleWindow.startIndex, visibleWindow.endIndex);
+      if (event.key.toLowerCase() === "f") {
+        event.preventDefault();
+        revealChrome(true);
+        setActiveOverlay("filters");
+        return;
+      }
+
+      if (event.key === "Enter" && selectedEntry) {
+        event.preventDefault();
+        setIsDetailOpen((current) => !current);
+        return;
+      }
+
+      if (event.key === "ArrowDown" || event.key.toLowerCase() === "j") {
+        event.preventDefault();
+        moveSelection(1);
+        return;
+      }
+
+      if (event.key === "ArrowUp" || event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        moveSelection(-1);
+      }
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+    };
+  }, [activeOverlay, isDetailOpen, query, selectedEntry, selectedIndex, filteredEntries]);
+
+  const paletteItems = [
+    {
+      id: "open-file",
+      label: "Open log file",
+      hint: "Ctrl/Cmd+O",
+      run: () => {
+        setActiveOverlay(null);
+        void openFromPicker();
+      },
+    },
+    {
+      id: "open-sample",
+      label: "Open bundled sample",
+      hint: "",
+      run: () => {
+        setActiveOverlay(null);
+        openSample();
+      },
+    },
+    {
+      id: "search",
+      label: query ? "Edit search query" : "Search logs",
+      hint: "/",
+      run: () => {
+        setActiveOverlay("search");
+      },
+    },
+    {
+      id: "clear-search",
+      label: "Clear search",
+      hint: "Esc",
+      disabled: !query,
+      run: () => {
+        setQuery("");
+        setActiveOverlay(null);
+      },
+    },
+    {
+      id: "filters",
+      label: "Filter severities",
+      hint: "F",
+      run: () => {
+        setActiveOverlay("filters");
+      },
+    },
+    {
+      id: "clear-filters",
+      label: "Show every severity",
+      hint: "",
+      disabled: isAllLevelsActive,
+      run: () => {
+        setActiveLevels([...FILTER_LEVELS]);
+        setActiveOverlay(null);
+      },
+    },
+    {
+      id: "detail",
+      label: isDetailOpen ? "Hide entry detail" : "Show entry detail",
+      hint: "Enter",
+      disabled: !selectedEntry,
+      run: () => {
+        setIsDetailOpen((current) => !current);
+        setActiveOverlay(null);
+      },
+    },
+  ].filter((item) => item.label.toLowerCase().includes(commandQuery.trim().toLowerCase()));
 
   return (
-    <div className="app-shell">
+    <div className="viewer-shell" onMouseMove={() => revealChrome()} onMouseLeave={() => scheduleChromeHide()}>
       <input ref={fileInputRef} type="file" accept=".log,.txt" hidden onChange={handleFileInputChange} />
 
-      <header className="topbar">
-        <div className="topbar-copy">
-          <p className="eyebrow">React log viewer</p>
-          <h1>Logviewer</h1>
-          <p className="topbar-summary">{summaryText()}</p>
-        </div>
-        <div className="topbar-actions">
-          <button className="action-button" onClick={() => setOverlay("open")}>
-            Open
-          </button>
-          <button
-            className="action-button"
-            onClick={() => {
-              setFilterDraft(filters);
-              setOverlay("filters");
-            }}
+      <main className="viewer-stage" aria-label="Log viewer">
+        {hasLoadedEntries ? (
+          <div
+            ref={scrollViewportRef}
+            className="log-viewport"
+            onScroll={(event) => setScrollTop(event.currentTarget.scrollTop)}
+            tabIndex={0}
+            aria-label="Log entries"
           >
-            Filters
-          </button>
-          <button className="action-button" onClick={() => setOverlay("views")}>
-            Views
-          </button>
-          <button
-            className="action-button"
-            onClick={() => {
-              setFindDraft(findQuery);
-              setOverlay("find");
-            }}
-          >
-            Find
-          </button>
-          <button className="action-button" onClick={() => void reloadCurrentFile()}>
-            Reload
-          </button>
-          <button className="action-button" onClick={() => setPaused((current) => !current)}>
-            {paused ? "Resume" : "Pause"}
-          </button>
-        </div>
-      </header>
+            <div style={{ height: topSpacerHeight }} aria-hidden="true" />
+            {visibleEntries.map((entry, rowOffset) => {
+              const level = getEntryLevel(entry);
+              const absoluteIndex = startIndex + rowOffset;
+              const isSelected = entry.id === selectionId;
 
-      <section className="command-deck">
-        <div className="command-card">
-          <span className="command-label">Focus</span>
-          <div className="segmented-control" role="group" aria-label="Severity focus">
-            <button
-              className={`segment-button${quickFocusMode === "all" ? " segment-button--active" : ""}`}
-              aria-pressed={quickFocusMode === "all"}
-              onClick={() => setQuickFocus("all")}
-            >
-              All entries
-            </button>
-            <button
-              className={`segment-button${quickFocusMode === "warnings" ? " segment-button--active" : ""}`}
-              aria-pressed={quickFocusMode === "warnings"}
-              onClick={() => setQuickFocus("warnings")}
-            >
-              Warnings+
-            </button>
-            <button
-              className={`segment-button${quickFocusMode === "errors" ? " segment-button--active" : ""}`}
-              aria-pressed={quickFocusMode === "errors"}
-              onClick={() => setQuickFocus("errors")}
-            >
-              Errors only
-            </button>
-          </div>
-        </div>
-
-        <div className="command-card">
-          <span className="command-label">Time</span>
-          <div className="button-row">
-            <button className="ghost-button" disabled={timeContext.latestTimestampMs === null} onClick={() => applyTimePreset(5)}>
-              Last 5m
-            </button>
-            <button className="ghost-button" disabled={timeContext.latestTimestampMs === null} onClick={() => applyTimePreset(15)}>
-              Last 15m
-            </button>
-            <button className="ghost-button" disabled={timeContext.latestTimestampMs === null} onClick={applyThisHourPreset}>
-              This hour
-            </button>
-          </div>
-        </div>
-
-        <div className="command-card command-card--status">
-          <span className="command-label">State</span>
-          <div className="status-badge-row">
-            <StatusBadge token={currentFile ? currentFile.label : "no file"} tone="accent" />
-            <StatusBadge token={`${visibleEntries.length}/${entries.length} lines`} />
-            <StatusBadge
-              token={paused ? "paused" : currentFile?.source === "handle" ? "following" : "static"}
-              tone={paused ? "warning" : "neutral"}
-            />
-            {currentFavorite ? <StatusBadge token="favorite" /> : null}
-          </div>
-        </div>
-      </section>
-
-      <section className="workspace-rails">
-        <section className={`saved-view-rail${savedViews.length === 0 ? " saved-view-rail--empty" : ""}`} role="region" aria-label="Saved views">
-          <div className="rail-header">
-            <div>
-              <p className="eyebrow">Saved views</p>
-              <strong>Daily contexts</strong>
-            </div>
-            <button className="ghost-button" onClick={() => setOverlay("views")}>
-              Manage
-            </button>
-          </div>
-          <div className="view-rail-list">
-            {savedViews.length === 0 ? (
-              <p className="rail-empty">Save a filter set once, then jump back to it from here.</p>
-            ) : (
-              savedViews.map((view) => (
-                <div
-                  key={view.name}
-                  className={`view-pill${activeViewName === view.name ? " view-pill--active" : ""}${view.enabled ? "" : " view-pill--disabled"}`}
-                >
-                  <button className="view-pill-main" onClick={() => activateView(view.name)}>
-                    {view.name}
-                  </button>
-                  <button
-                    className="view-pill-toggle"
-                    onClick={() => (view.enabled ? disableView(view.name) : activateView(view.name))}
-                  >
-                    {view.enabled ? "On" : "Off"}
-                  </button>
-                </div>
-              ))
-            )}
-          </div>
-        </section>
-
-        <section className={`active-filter-bar${hasActiveFilterState ? "" : " active-filter-bar--empty"}`} role="region" aria-label="Active filters">
-          <div className="rail-header">
-            <div>
-              <p className="eyebrow">Active filters</p>
-              <strong>Fast noise control</strong>
-            </div>
-            <button
-              className="ghost-button"
-              onClick={() => {
-                setFilters(EMPTY_FILTER);
-                setActiveViewName(null);
-                setFindQuery("");
-                setStatusMessage("Cleared active filters and find state.");
-              }}
-            >
-              Clear all
-            </button>
-          </div>
-          <div className="summary-chip-row">
-            {activeView ? <span className="summary-chip summary-chip--static">{`view:${activeView.name}`}</span> : null}
-            {activeFilterPills.map((pill) => (
-              <FilterPillButton key={pill.id} label={pill.label} onRemove={() => clearActiveFilter(pill.label)} />
-            ))}
-            {deferredFindQuery ? (
-              <FilterPillButton label={`find:${deferredFindQuery}`} onRemove={() => setFindQuery("")} />
-            ) : null}
-            {isPending ? <span className="summary-chip summary-chip--static">refreshing</span> : null}
-            {!hasActiveFilterState ? <span className="summary-empty">No active filters.</span> : null}
-          </div>
-        </section>
-      </section>
-
-      <section className="workspace">
-        <section className={`noise-bar${topCategoryValues.length === 0 ? " noise-bar--empty" : ""}`}>
-          <div className="rail-header">
-            <div>
-              <p className="eyebrow">Noise controls</p>
-              <strong>Quick category mute</strong>
-            </div>
-            <button
-              className="ghost-button"
-              onClick={() => {
-                setFilterDraft(filters);
-                setOverlay("filters");
-              }}
-            >
-              Advanced filters
-            </button>
-          </div>
-          {topCategoryValues.length === 0 ? (
-            <p className="rail-empty">Open a log to expose the most frequent noisy categories here.</p>
-          ) : (
-            <div className="noise-chip-row">
-              {topCategoryValues.map((category) => (
+              return (
                 <button
-                  key={category}
-                  className={`category-chip${filters.excludeCategories.includes(category) ? " category-chip--excluded" : ""}`}
-                  onClick={() => toggleExcludedCategory(category)}
+                  key={entry.id}
+                  className={`log-row log-row--${level.toLowerCase()}${isSelected ? " log-row--selected" : ""}`}
+                  style={{ height: ROW_HEIGHT }}
+                  aria-label={`Select log entry ${absoluteIndex + 1}`}
+                  aria-pressed={isSelected}
+                  onClick={() => setSelectionId(entry.id)}
+                  onDoubleClick={() => setIsDetailOpen(true)}
                 >
-                  {category}
+                  <span className="log-row__time">{renderHighlightedText(formatRowTime(entry) || "Unparsed", deferredQuery)}</span>
+                  <span
+                    className="log-row__level"
+                    style={{ color: entry.level ? LEVEL_COLORS[entry.level] : "var(--text-faint)" }}
+                  >
+                    {renderHighlightedText(level, deferredQuery)}
+                  </span>
+                  <span className="log-row__message">
+                    {entry.category ? <span className="log-row__category">{renderHighlightedText(entry.category, deferredQuery)}</span> : null}
+                    <span className="log-row__body">{renderHighlightedText(entry.message, deferredQuery)}</span>
+                  </span>
                 </button>
-              ))}
-            </div>
-          )}
-        </section>
-
-        <div className={`workspace-main${showDetailPanel ? " workspace-main--with-detail" : ""}`}>
-          <div className="viewer-panel">
-            <div className="table-toolbar">
-              <div>
-                <strong>{visibleEntries.length}</strong>
-                <span> visible rows</span>
-              </div>
-              <div className="toolbar-actions">
-                {deferredFindQuery ? <span>{`find ${activeFindMatch}/${findMatches.length}`}</span> : null}
-                {currentFile ? (
-                  <button className="ghost-button" onClick={() => setDetailVisible((current) => !current)}>
-                    {showDetailPanel ? "Hide detail" : "Show detail"}
-                  </button>
-                ) : null}
-              </div>
-            </div>
-            <div className="table-header" role="row">
-              <span>Time</span>
-              <span>Level</span>
-              <span>Category</span>
-              <span>Message</span>
-            </div>
-            <div
-              ref={viewportRef}
-              className="table-viewport"
-              onScroll={(event) => setScrollTop(event.currentTarget.scrollTop)}
-              tabIndex={0}
-              onKeyDown={(event: ReactKeyboardEvent<HTMLDivElement>) => {
-                if (event.key === "ArrowDown") {
-                  event.preventDefault();
-                  moveSelection(1);
-                }
-              }}
-            >
-              {visibleEntries.length === 0 ? (
-                <div className="empty-state">
-                  <p>No visible log entries.</p>
-                  <span>Open a file, clear filters, or load the bundled sample.</span>
-                </div>
-              ) : (
-                <div className="table-spacer" style={{ height: visibleWindow.totalHeight }}>
-                  {renderedRows.map((entry, offset) => {
-                    const absoluteIndex = visibleWindow.startIndex + offset;
-                    const selected = absoluteIndex === selection;
-                    return (
-                      <button
-                        key={entry.id}
-                        className={`log-row${selected ? " log-row--selected" : ""}`}
-                        style={{ transform: `translateY(${absoluteIndex * ROW_HEIGHT}px)` }}
-                        onClick={() => setSelection(absoluteIndex)}
-                      >
-                        <span>{formatRowTime(entry)}</span>
-                        <span style={{ color: entry.level ? LEVEL_COLORS[entry.level] : "#9fb4c8" }}>{entry.level ?? "RAW"}</span>
-                        <span>{entry.category ?? ""}</span>
-                        <span>{entry.message}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
+              );
+            })}
+            <div style={{ height: bottomSpacerHeight }} aria-hidden="true" />
           </div>
-
-          {showDetailPanel ? (
-            <aside className="detail-panel">
-              <div className="detail-header">
-                <div>
-                  <h2>Detail</h2>
-                  <p className="overlay-note">Selection follows the table without covering the rows.</p>
-                </div>
-                <div className="detail-actions">
-                  <button className="ghost-button" onClick={() => selectedEntry?.level && toggleExcludedLevel(selectedEntry.level)}>
-                    Hide level
-                  </button>
-                  <button className="ghost-button" onClick={() => selectedEntry?.category && toggleExcludedCategory(selectedEntry.category)}>
-                    Hide category
-                  </button>
-                  <button className="ghost-button" onClick={() => void copySelectedRaw()}>
-                    Copy raw
-                  </button>
-                </div>
-              </div>
-              <pre>{buildDetailText(selectedEntry, selection, visibleEntries.length)}</pre>
-            </aside>
-          ) : null}
-        </div>
-      </section>
-
-      <footer className="statusbar">
-        <span>{statusMessage}</span>
-        {errorMessage ? <span className="statusbar-error">{errorMessage}</span> : null}
-        <span className="shortcut-hint">o open · f filters · / find · v views · enter detail · space pause · j/k move</span>
-      </footer>
-
-      {overlay === "open" ? (
-        <Overlay
-          title="Open log file"
-          subtitle="Use the browser file picker for local logs, or jump straight into the bundled NLog sample."
-          onClose={() => setOverlay(null)}
-        >
-          <div className="overlay-section">
-            <div className="button-row">
-              <button className="primary-button" onClick={() => void openFromPicker()}>
-                Open local log
+        ) : (
+          <section className="empty-state">
+            <p className="empty-state__eyebrow">Minimal log viewer</p>
+            <h1>Logs stay full-screen. Controls stay out of the way.</h1>
+            <p>{statusMessage}</p>
+            <div className="empty-state__actions">
+              <button className="glass-button glass-button--strong" onClick={() => void openFromPicker()}>
+                Open log file
               </button>
-              <button className="ghost-button" onClick={() => void openSample()}>
+              <button className="glass-button" onClick={openSample}>
                 Open bundled sample
               </button>
             </div>
-            <p className="overlay-note">Favorites and recents stay close when the browser still holds file permission.</p>
-          </div>
+            <p className="empty-state__hint">Use `Ctrl/Cmd+O` to open, `/` to search, `F` to filter, `Enter` for detail.</p>
+          </section>
+        )}
 
-          <div className="candidate-list">
-            {[SAMPLE_RECORD, ...candidates.filter((candidate) => candidate.id !== SAMPLE_RECORD.id)].map((candidate) => (
-              <div
-                key={candidate.id}
-                className={`candidate-card${selectedCandidateId === candidate.id ? " candidate-card--selected" : ""}`}
-                onClick={() => setSelectedCandidateId(candidate.id)}
+        <div className={`chrome-layer${isChromeVisible || activeOverlay ? " chrome-layer--visible" : ""}`}>
+          <div className="chrome-bar">
+            <div className="glass-chip chrome-cluster chrome-cluster--file">
+              <span className="chrome-label">File</span>
+              <strong>{currentFile?.label ?? "No file open"}</strong>
+              {currentFile ? <span>{formatFileSize(currentFile.size)}</span> : null}
+            </div>
+
+            <div className="chrome-cluster chrome-cluster--actions">
+              <button className="glass-button" onClick={() => void openFromPicker()}>
+                Open
+              </button>
+              <button className="glass-button" onClick={() => setActiveOverlay("search")}>
+                Search <kbd>/</kbd>
+              </button>
+              <button className="glass-button" onClick={() => setActiveOverlay("filters")}>
+                Filter <kbd>F</kbd>
+              </button>
+              <button
+                className="glass-button"
+                onClick={() => {
+                  setCommandQuery("");
+                  setActiveOverlay("palette");
+                }}
               >
-                <div>
-                  <strong>{candidate.label}</strong>
-                  <p>{candidate.source === "handle" ? "Local file handle" : "Bundled sample or browser upload"}</p>
-                </div>
-                <div className="candidate-actions">
-                  {candidate.id !== SAMPLE_RECORD.id ? (
-                    <button
-                      className="ghost-button"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        setCatalog((current) => toggleFavorite(current, candidate.id));
-                      }}
-                    >
-                      {catalog.records.find((record) => record.id === candidate.id)?.isFavorite ? "★ Favorite" : "☆ Favorite"}
-                    </button>
-                  ) : null}
-                  <button className="primary-button" onClick={() => void openCandidate(candidate)}>
-                    Open
-                  </button>
-                </div>
-              </div>
-            ))}
+                Commands <kbd>Ctrl/Cmd+K</kbd>
+              </button>
+            </div>
           </div>
-        </Overlay>
-      ) : null}
+        </div>
 
-      {overlay === "filters" ? (
-        <Overlay
-          title="Filters"
-          subtitle="Keep the main surface lean. Use this workspace when you need exact category, level, text, or time control."
-          onClose={() => setOverlay(null)}
-        >
-          <div className="overlay-grid">
-            <section className="filter-section">
-              <h3>Levels</h3>
-              <p>Tap a level chip to cycle include, exclude, then neutral.</p>
-              <div className="chip-grid">
-                {LOG_LEVELS.map((level) => {
-                  const state = filterDraft.includeLevels.includes(level)
-                    ? "include"
-                    : filterDraft.excludeLevels.includes(level)
-                      ? "exclude"
-                      : "neutral";
-                  return (
-                    <button
-                      key={level}
-                      className={`level-chip level-chip--${state}`}
-                      style={{ "--level-color": LEVEL_COLORS[level] } as CSSProperties}
-                      onClick={() => cycleDraftLevel(level)}
-                    >
-                      {state === "include" ? "+ " : state === "exclude" ? "- " : ""}
-                      {level}
-                    </button>
-                  );
-                })}
-              </div>
-            </section>
+        {errorMessage ? (
+          <div className="floating-banner" role="alert">
+            {errorMessage}
+          </div>
+        ) : null}
 
-            <section className="filter-section">
-              <h3>Quick categories</h3>
-              <p>Frequent categories stay one click away so you can kill noise without leaving the list.</p>
-              <div className="chip-grid">
-                {topCategoryValues.map((category) => (
+        <div className="status-stack">
+          <div className="glass-chip status-pill">
+            <strong>{resultLabel}</strong>
+            {query ? <span>search: {query}</span> : null}
+            {!isAllLevelsActive ? <span>{activeLevels.join(" ")}</span> : null}
+          </div>
+
+          {selectedEntry ? (
+            <button className="glass-chip status-pill status-pill--interactive" onClick={() => setIsDetailOpen((current) => !current)}>
+              <strong>
+                {selectedIndex + 1}/{filteredEntries.length}
+              </strong>
+              <span>{selectedEntry.level ?? "RAW"}</span>
+              <span>{selectedEntry.category ?? "Uncategorized"}</span>
+            </button>
+          ) : null}
+        </div>
+
+        {activeOverlay === "search" ? (
+          <div className="overlay-card overlay-card--search" role="search" onMouseEnter={() => revealChrome(true)}>
+            <label className="overlay-field">
+              <span className="overlay-field__prefix">/</span>
+              <input
+                ref={searchInputRef}
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="Search time, severity, category, or raw text"
+                aria-label="Search logs"
+              />
+            </label>
+            <div className="overlay-meta">
+              <span>{resultLabel}</span>
+              <button className="overlay-link" onClick={() => setActiveOverlay(null)}>
+                Close
+              </button>
+            </div>
+          </div>
+        ) : null}
+
+        {activeOverlay === "filters" ? (
+          <div className="overlay-card overlay-card--filters" role="dialog" aria-label="Severity filters" onMouseEnter={() => revealChrome(true)}>
+            <div className="overlay-heading">
+              <strong>Severity filters</strong>
+              <button className="overlay-link" onClick={() => setActiveOverlay(null)}>
+                Close
+              </button>
+            </div>
+            <div className="filter-grid">
+              {FILTER_LEVELS.map((level) => {
+                const isActive = activeLevels.includes(level);
+                const swatch = level === "RAW" ? "var(--text-faint)" : LEVEL_COLORS[level as LogLevel];
+
+                return (
                   <button
-                    key={category}
-                    className={`category-chip${filterDraft.excludeCategories.includes(category) ? " category-chip--excluded" : ""}`}
-                    onClick={() => toggleDraftExcludedCategory(category)}
+                    key={level}
+                    className={`filter-chip${isActive ? " filter-chip--active" : ""}`}
+                    onClick={() => toggleLevel(level)}
+                    style={{ "--filter-color": swatch } as CSSProperties}
                   >
-                    {category}
+                    {level}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ) : null}
+
+        {activeOverlay === "palette" ? (
+          <>
+            <button className="overlay-scrim" aria-label="Close command palette" onClick={() => setActiveOverlay(null)} />
+            <div className="overlay-card overlay-card--palette" role="dialog" aria-label="Command palette">
+              <label className="overlay-field">
+                <span className="overlay-field__prefix">⌘</span>
+                <input
+                  ref={commandInputRef}
+                  value={commandQuery}
+                  onChange={(event) => setCommandQuery(event.target.value)}
+                  placeholder="Jump to a command"
+                  aria-label="Command palette"
+                />
+              </label>
+              <div className="palette-list">
+                {paletteItems.map((item) => (
+                  <button
+                    key={item.id}
+                    className="palette-item"
+                    onClick={item.run}
+                    disabled={item.disabled}
+                  >
+                    <span>{item.label}</span>
+                    {item.hint ? <kbd>{item.hint}</kbd> : null}
                   </button>
                 ))}
+                {paletteItems.length === 0 ? <p className="palette-empty">No matching commands.</p> : null}
               </div>
-            </section>
-
-            <section className="filter-section filter-section--fields">
-              <label>
-                Include categories
-                <input
-                  value={filterDraft.includeCategories.join(", ")}
-                  placeholder="Api.LoginController, Billing.Domain"
-                  onChange={(event) =>
-                    setFilterDraft((current) => ({ ...current, includeCategories: csvToList(event.target.value) }))
-                  }
-                />
-              </label>
-              <label>
-                Exclude categories
-                <input
-                  value={filterDraft.excludeCategories.join(", ")}
-                  placeholder="Noise.Category, Debug.Heartbeat"
-                  onChange={(event) =>
-                    setFilterDraft((current) => ({ ...current, excludeCategories: csvToList(event.target.value) }))
-                  }
-                />
-              </label>
-              <label>
-                Search text
-                <input
-                  value={filterDraft.textQuery}
-                  placeholder="timeout, request_id, exception"
-                  onChange={(event) => setFilterDraft((current) => ({ ...current, textQuery: event.target.value }))}
-                />
-              </label>
-              <div className="time-grid">
-                <label>
-                  Start time
-                  <input
-                    value={filterDraft.startTime}
-                    placeholder="09:15 or 2026-06-03 09:15"
-                    onChange={(event) => setFilterDraft((current) => ({ ...current, startTime: event.target.value }))}
-                  />
-                </label>
-                <label>
-                  End time
-                  <input
-                    value={filterDraft.endTime}
-                    placeholder="09:30 or 2026-06-03 09:30"
-                    onChange={(event) => setFilterDraft((current) => ({ ...current, endTime: event.target.value }))}
-                  />
-                </label>
-              </div>
-              <div className="button-row">
-                <button
-                  className="ghost-button"
-                  disabled={timeContext.latestTimestampMs === null}
-                  onClick={() =>
-                    timeContext.latestTimestampMs !== null &&
-                    setFilterDraft((current) => buildPresetRange(current, timeContext.latestTimestampMs!, 5))
-                  }
-                >
-                  Last 5m
-                </button>
-                <button
-                  className="ghost-button"
-                  disabled={timeContext.latestTimestampMs === null}
-                  onClick={() =>
-                    timeContext.latestTimestampMs !== null &&
-                    setFilterDraft((current) => buildPresetRange(current, timeContext.latestTimestampMs!, 15))
-                  }
-                >
-                  Last 15m
-                </button>
-                <button
-                  className="ghost-button"
-                  disabled={timeContext.latestTimestampMs === null}
-                  onClick={() =>
-                    timeContext.latestTimestampMs !== null &&
-                    setFilterDraft((current) => buildThisHourRange(current, timeContext.latestTimestampMs!))
-                  }
-                >
-                  This hour
-                </button>
-              </div>
-            </section>
-          </div>
-
-          <div className="button-row button-row--footer">
-            <button className="ghost-button" onClick={() => setFilterDraft(EMPTY_FILTER)}>
-              Clear
-            </button>
-            <button className="primary-button" onClick={() => applyCurrentFilters(filterDraft)}>
-              Apply
-            </button>
-          </div>
-        </Overlay>
-      ) : null}
-
-      {overlay === "views" ? (
-        <Overlay
-          title="Saved views"
-          subtitle="Store named filter combinations so daily context switching stays nearly instant."
-          onClose={() => setOverlay(null)}
-          width="compact"
-        >
-          <div className="overlay-section">
-            <label>
-              Save current filters
-              <input value={newViewName} placeholder="errors-now" onChange={(event) => setNewViewName(event.target.value)} />
-            </label>
-            <div className="button-row">
-              <button className="primary-button" onClick={saveView}>
-                Save current
-              </button>
             </div>
-          </div>
+          </>
+        ) : null}
 
-          <div className="view-list">
-            {savedViews.length === 0 ? (
-              <p className="overlay-note">No saved views yet.</p>
-            ) : (
-              savedViews.map((view) => (
-                <div
-                  key={view.name}
-                  className={`view-card${selectedViewName === view.name ? " view-card--selected" : ""}`}
-                  onClick={() => setSelectedViewName(view.name)}
-                >
-                  <div>
-                    <strong>{view.enabled ? "●" : "○"} {view.name}</strong>
-                    <p>{summarizeFilters(view.filterSpec).join(" | ") || "no filters"}</p>
-                  </div>
-                  <div className="candidate-actions">
-                    <button className="ghost-button" onClick={() => disableView(view.name)}>
-                      Disable
-                    </button>
-                    <button className="primary-button" onClick={() => activateView(view.name)}>
-                      Activate
-                    </button>
-                  </div>
+        {isDetailOpen && selectedEntry ? (
+          <>
+            <button className="overlay-scrim overlay-scrim--soft" aria-label="Close entry detail" onClick={() => setIsDetailOpen(false)} />
+            <aside className="detail-drawer" role="dialog" aria-label="Entry detail" onMouseEnter={() => revealChrome(true)}>
+              <div className="detail-drawer__header">
+                <div>
+                  <p>Entry detail</p>
+                  <strong>
+                    {selectedIndex + 1} of {filteredEntries.length}
+                  </strong>
                 </div>
-              ))
-            )}
-          </div>
-        </Overlay>
-      ) : null}
-
-      {overlay === "find" ? (
-        <Overlay
-          title="Find"
-          subtitle="Transient search stays separate from the persistent filter set. Use n and Shift+N to move between matches."
-          onClose={() => setOverlay(null)}
-          width="compact"
-        >
-          <div className="overlay-section">
-            <label>
-              Find text
-              <input value={findDraft} placeholder="timeout" onChange={(event) => setFindDraft(event.target.value)} />
-            </label>
-            <div className="button-row">
-              <button
-                className="ghost-button"
-                onClick={() => {
-                  setFindDraft("");
-                  setFindQuery("");
-                  setOverlay(null);
-                }}
-              >
-                Clear
-              </button>
-              <button
-                className="primary-button"
-                onClick={() => {
-                  setFindQuery(findDraft.trim());
-                  setOverlay(null);
-                }}
-              >
-                Find
-              </button>
-            </div>
-          </div>
-        </Overlay>
-      ) : null}
+                <button className="glass-button" onClick={() => setIsDetailOpen(false)}>
+                  Close
+                </button>
+              </div>
+              <pre>{buildDetailText(selectedEntry, selectedIndex, filteredEntries.length)}</pre>
+            </aside>
+          </>
+        ) : null}
+      </main>
     </div>
   );
 }
