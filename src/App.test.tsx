@@ -1,6 +1,6 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import App from "./App";
 
@@ -33,5 +33,27 @@ describe("App", () => {
 
     expect((await screen.findAllByText("22 of 480 lines")).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Queue lag exceeded threshold/i).length).toBeGreaterThan(0);
+  });
+
+  it("measures the log viewport after a file is opened so virtualization fills the screen", async () => {
+    const user = userEvent.setup();
+    const clientHeightSpy = vi.spyOn(HTMLElement.prototype, "clientHeight", "get").mockImplementation(function (this: HTMLElement) {
+      return this.classList.contains("log-viewport") ? 440 : 0;
+    });
+
+    try {
+      render(<App />);
+
+      await user.click(screen.getByRole("button", { name: "Open bundled sample" }));
+      await screen.findByText("480 of 480 lines");
+
+      await waitFor(() => {
+        const visibleRows = screen.getAllByRole("button", { name: /Select log entry/i });
+        expect(visibleRows.length).toBeGreaterThan(28);
+        expect(visibleRows.length).toBeLessThan(480);
+      });
+    } finally {
+      clientHeightSpy.mockRestore();
+    }
   });
 });

@@ -126,7 +126,8 @@ export default function App() {
   const selectedEntry = selectedIndex === -1 ? null : filteredEntries[selectedIndex] ?? null;
   const totalHeight = filteredEntries.length * ROW_HEIGHT;
   const startIndex = Math.max(0, Math.floor(scrollTop / ROW_HEIGHT) - OVERSCAN);
-  const visibleRowCount = Math.ceil(viewportHeight / ROW_HEIGHT) + OVERSCAN * 2;
+  const visibleRowCount =
+    viewportHeight > 0 ? Math.ceil(viewportHeight / ROW_HEIGHT) + OVERSCAN * 2 : filteredEntries.length;
   const endIndex = Math.min(filteredEntries.length, startIndex + visibleRowCount);
   const visibleEntries = filteredEntries.slice(startIndex, endIndex);
   const topSpacerHeight = startIndex * ROW_HEIGHT;
@@ -333,6 +334,7 @@ export default function App() {
   useEffect(() => {
     const viewport = scrollViewportRef.current;
     if (!viewport) {
+      setViewportHeight(0);
       return;
     }
 
@@ -347,7 +349,7 @@ export default function App() {
     return () => {
       observer.disconnect();
     };
-  }, []);
+  }, [hasLoadedEntries]);
 
   useEffect(() => {
     revealChrome();
