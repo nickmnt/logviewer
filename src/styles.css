@@ -116,7 +116,7 @@ mark {
 .log-row {
   width: 100%;
   display: grid;
-  grid-template-columns: minmax(13rem, 15.5rem) minmax(4.5rem, 5.5rem) minmax(0, 1fr);
+  grid-template-columns: minmax(13rem, 15.5rem) 6.5ch minmax(0, 1fr);
   align-items: center;
   gap: 1rem;
   padding: 0 1.35rem;
