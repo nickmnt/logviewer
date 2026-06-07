@@ -169,6 +169,10 @@ export default function App() {
     setIsDetailOpen(false);
   }
 
+  function focusViewport(): void {
+    scrollViewportRef.current?.focus({ preventScroll: true });
+  }
+
   function resetViewState(): void {
     setQuery("");
     setCommandQuery("");
@@ -554,11 +558,16 @@ export default function App() {
               return (
                 <button
                   key={entry.id}
-                  className={`log-row log-row--${level.toLowerCase()}${isSelected ? " log-row--selected" : ""}`}
+                  className={`log-row log-row--${level.toLowerCase()}${absoluteIndex % 2 === 1 ? " log-row--striped" : ""}${isSelected ? " log-row--selected" : ""}`}
                   style={{ height: ROW_HEIGHT }}
                   aria-label={`Select log entry ${absoluteIndex + 1}`}
                   aria-pressed={isSelected}
-                  onClick={() => setSelectionId(entry.id)}
+                  tabIndex={-1}
+                  onMouseDown={(event) => event.preventDefault()}
+                  onClick={() => {
+                    setSelectionId(entry.id);
+                    focusViewport();
+                  }}
                   onDoubleClick={() => setIsDetailOpen(true)}
                 >
                   <span className="log-row__time">{renderHighlightedText(formatRowTime(entry) || "Unparsed", deferredQuery)}</span>

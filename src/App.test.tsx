@@ -20,6 +20,27 @@ describe("App", () => {
     expect(screen.getByText(/Selected entry 2\/480/)).toBeInTheDocument();
   });
 
+  it("keeps focus on the viewport after clicking a row so arrow navigation does not leave a stale row focus ring", async () => {
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await user.click(screen.getByRole("button", { name: "Open bundled sample" }));
+    await screen.findByText("480 of 480 lines");
+
+    const viewport = screen.getByLabelText("Log entries");
+    const secondRow = screen.getByRole("button", { name: "Select log entry 2" });
+
+    await user.click(secondRow);
+
+    expect(viewport).toHaveFocus();
+
+    await user.keyboard("{ArrowDown}");
+
+    expect(viewport).toHaveFocus();
+    expect(screen.getByRole("button", { name: "Select log entry 3" })).toHaveAttribute("aria-pressed", "true");
+  });
+
   it("filters the log stream through the search overlay", async () => {
     const user = userEvent.setup();
 

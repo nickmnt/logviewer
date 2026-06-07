@@ -60,6 +60,15 @@ input:focus-visible {
   outline-offset: 2px;
 }
 
+.log-viewport:focus-visible {
+  outline: 2px solid rgba(143, 212, 255, 0.72);
+  outline-offset: -2px;
+}
+
+.log-row:focus-visible {
+  outline: none;
+}
+
 kbd {
   font-family: "IBM Plex Mono", "SFMono-Regular", Consolas, monospace;
   font-size: 0.72rem;
@@ -119,7 +128,7 @@ mark {
     border-color 120ms ease;
 }
 
-.log-row:nth-child(2n) {
+.log-row--striped {
   background: rgba(255, 255, 255, 0.014);
 }
 
