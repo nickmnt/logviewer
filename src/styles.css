@@ -144,6 +144,12 @@ mark {
   box-shadow: inset 2px 0 0 var(--accent);
 }
 
+.log-row--selected:hover {
+  background:
+    linear-gradient(90deg, rgba(143, 212, 255, 0.16), rgba(143, 212, 255, 0.05)),
+    rgba(255, 255, 255, 0.03);
+}
+
 .log-row__time,
 .log-row__level {
   font-family: "IBM Plex Mono", "SFMono-Regular", Consolas, monospace;
@@ -169,7 +175,9 @@ mark {
 }
 
 .log-row__category {
-  flex: 0 0 auto;
+  box-sizing: border-box;
+  flex: 0 0 24ch;
+  width: 24ch;
   max-width: 24ch;
   overflow: hidden;
   text-overflow: ellipsis;
