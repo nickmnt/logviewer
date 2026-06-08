@@ -1,7 +1,6 @@
 import {
   CSSProperties,
   ChangeEvent,
-  ReactNode,
   startTransition,
   useDeferredValue,
   useEffect,
@@ -10,16 +9,14 @@ import {
   useState,
 } from "react";
 import sampleLogText from "../examples/nlog.log?raw";
-import { formatDetailTime, formatRowTime, LEVEL_COLORS, parseLogText } from "./lib/logs";
-import { CurrentFile, LOG_LEVELS, LogEntry, LogLevel } from "./types";
+import { VirtualLogList } from "./components/VirtualLogList";
+import { formatDetailTime, LEVEL_COLORS, parseLogText } from "./lib/logs";
+import { CurrentFile, LOG_LEVELS, LogEntry, LogLevel, VisibleLevel } from "./types";
 
-const ROW_HEIGHT = 44;
-const OVERSCAN = 14;
 const CHROME_IDLE_MS = 1800;
 const FILTER_LEVELS = [...LOG_LEVELS, "RAW"] as const;
 
 type OverlayKind = "palette" | "search" | "filters" | null;
-type VisibleLevel = (typeof FILTER_LEVELS)[number];
 
 function buildDetailText(entry: LogEntry | null, selectedIndex: number, totalEntries: number): string {
   if (!entry) {
@@ -38,38 +35,6 @@ function buildDetailText(entry: LogEntry | null, selectedIndex: number, totalEnt
     "Raw",
     entry.raw,
   ].join("\n");
-}
-
-function getEntryLevel(entry: LogEntry): VisibleLevel {
-  return entry.level ?? "RAW";
-}
-
-function matchesQuery(entry: LogEntry, query: string): boolean {
-  if (!query) {
-    return true;
-  }
-
-  const haystack = [entry.timestampText, entry.level ?? "RAW", entry.category ?? "", entry.message, entry.raw].join("\n").toLowerCase();
-  return haystack.includes(query);
-}
-
-function renderHighlightedText(text: string, query: string): ReactNode {
-  if (!query) {
-    return text;
-  }
-
-  const source = text.toLowerCase();
-  const matchIndex = source.indexOf(query);
-  if (matchIndex === -1) {
-    return text;
-  }
-
-  const matchEnd = matchIndex + query.length;
-  return [
-    text.slice(0, matchIndex),
-    <mark key={`${text}-${matchIndex}`}>{text.slice(matchIndex, matchEnd)}</mark>,
-    text.slice(matchEnd),
-  ];
 }
 
 function isTypingTarget(target: EventTarget | null): boolean {
@@ -96,6 +61,18 @@ function formatFileSize(size: number): string {
   return `${(size / (1024 * 1024)).toFixed(1)} MB`;
 }
 
+function isFilePickerCancellation(error: unknown): boolean {
+  if (error instanceof DOMException) {
+    return error.name === "AbortError";
+  }
+
+  if (error instanceof Error) {
+    return error.name === "AbortError";
+  }
+
+  return false;
+}
+
 export default function App() {
   const [currentFile, setCurrentFile] = useState<CurrentFile | null>(null);
   const [entries, setEntries] = useState<LogEntry[]>([]);
@@ -108,8 +85,6 @@ export default function App() {
   const [activeOverlay, setActiveOverlay] = useState<OverlayKind>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [isChromeVisible, setIsChromeVisible] = useState(true);
-  const [scrollTop, setScrollTop] = useState(0);
-  const [viewportHeight, setViewportHeight] = useState(0);
 
   const deferredQuery = useDeferredValue(query.trim().toLowerCase());
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -118,20 +93,16 @@ export default function App() {
   const commandInputRef = useRef<HTMLInputElement | null>(null);
   const chromeTimerRef = useRef<number | null>(null);
 
+  const activeLevelSet = useMemo(() => new Set(activeLevels), [activeLevels]);
   const filteredEntries = useMemo(() => {
-    return entries.filter((entry) => activeLevels.includes(getEntryLevel(entry)) && matchesQuery(entry, deferredQuery));
-  }, [activeLevels, deferredQuery, entries]);
+    return entries.filter((entry) => activeLevelSet.has(entry.visibleLevel) && (!deferredQuery || entry.searchText.includes(deferredQuery)));
+  }, [activeLevelSet, deferredQuery, entries]);
 
-  const selectedIndex = filteredEntries.findIndex((entry) => entry.id === selectionId);
+  const selectedIndexById = useMemo(() => {
+    return new Map(filteredEntries.map((entry, index) => [entry.id, index]));
+  }, [filteredEntries]);
+  const selectedIndex = selectionId === null ? -1 : (selectedIndexById.get(selectionId) ?? -1);
   const selectedEntry = selectedIndex === -1 ? null : filteredEntries[selectedIndex] ?? null;
-  const totalHeight = filteredEntries.length * ROW_HEIGHT;
-  const startIndex = Math.max(0, Math.floor(scrollTop / ROW_HEIGHT) - OVERSCAN);
-  const visibleRowCount =
-    viewportHeight > 0 ? Math.ceil(viewportHeight / ROW_HEIGHT) + OVERSCAN * 2 : filteredEntries.length;
-  const endIndex = Math.min(filteredEntries.length, startIndex + visibleRowCount);
-  const visibleEntries = filteredEntries.slice(startIndex, endIndex);
-  const topSpacerHeight = startIndex * ROW_HEIGHT;
-  const bottomSpacerHeight = Math.max(0, totalHeight - topSpacerHeight - visibleEntries.length * ROW_HEIGHT);
   const isAllLevelsActive = activeLevels.length === FILTER_LEVELS.length;
   const hasLoadedEntries = entries.length > 0;
   const resultLabel = hasLoadedEntries
@@ -173,12 +144,22 @@ export default function App() {
     scrollViewportRef.current?.focus({ preventScroll: true });
   }
 
+  function restoreViewportFocus(): void {
+    if (!hasLoadedEntries) {
+      return;
+    }
+
+    window.requestAnimationFrame(() => {
+      focusViewport();
+    });
+  }
+
   function resetViewState(): void {
     setQuery("");
     setCommandQuery("");
     setActiveLevels([...FILTER_LEVELS]);
     closeTransientUi();
-    setScrollTop(0);
+    scrollViewportRef.current?.scrollTo({ top: 0, behavior: "auto" });
   }
 
   function loadEntries(file: CurrentFile, text: string, nextStatus: string): void {
@@ -231,6 +212,10 @@ export default function App() {
 
       fileInputRef.current?.click();
     } catch (error) {
+      if (isFilePickerCancellation(error)) {
+        return;
+      }
+
       setErrorMessage(error instanceof Error ? error.message : "Unable to open a log file.");
     }
   }
@@ -311,49 +296,10 @@ export default function App() {
       return;
     }
 
-    if (selectionId === null || !filteredEntries.some((entry) => entry.id === selectionId)) {
+    if (selectionId === null || selectedIndex === -1) {
       setSelectionId(filteredEntries[0]?.id ?? null);
     }
-  }, [filteredEntries, selectionId]);
-
-  useEffect(() => {
-    const viewport = scrollViewportRef.current;
-    if (!viewport || selectedIndex === -1) {
-      return;
-    }
-
-    const itemTop = selectedIndex * ROW_HEIGHT;
-    const itemBottom = itemTop + ROW_HEIGHT;
-
-    if (itemTop < viewport.scrollTop) {
-      viewport.scrollTop = itemTop;
-      return;
-    }
-
-    if (itemBottom > viewport.scrollTop + viewport.clientHeight) {
-      viewport.scrollTop = itemBottom - viewport.clientHeight;
-    }
-  }, [selectedIndex]);
-
-  useEffect(() => {
-    const viewport = scrollViewportRef.current;
-    if (!viewport) {
-      setViewportHeight(0);
-      return;
-    }
-
-    const updateViewportSize = (): void => {
-      setViewportHeight(viewport.clientHeight);
-    };
-
-    updateViewportSize();
-    const observer = new ResizeObserver(updateViewportSize);
-    observer.observe(viewport);
-
-    return () => {
-      observer.disconnect();
-    };
-  }, [hasLoadedEntries]);
+  }, [filteredEntries, selectedIndex, selectionId]);
 
   useEffect(() => {
     revealChrome();
@@ -410,18 +356,21 @@ export default function App() {
         if (activeOverlay) {
           event.preventDefault();
           setActiveOverlay(null);
+          restoreViewportFocus();
           return;
         }
 
         if (isDetailOpen) {
           event.preventDefault();
           setIsDetailOpen(false);
+          restoreViewportFocus();
           return;
         }
 
         if (query) {
           event.preventDefault();
           setQuery("");
+          restoreViewportFocus();
         }
 
         return;
@@ -542,50 +491,18 @@ export default function App() {
 
       <main className="viewer-stage" aria-label="Log viewer">
         {hasLoadedEntries ? (
-          <div
-            ref={scrollViewportRef}
-            className="log-viewport"
-            onScroll={(event) => setScrollTop(event.currentTarget.scrollTop)}
-            tabIndex={0}
-            aria-label="Log entries"
-          >
-            <div style={{ height: topSpacerHeight }} aria-hidden="true" />
-            {visibleEntries.map((entry, rowOffset) => {
-              const level = getEntryLevel(entry);
-              const absoluteIndex = startIndex + rowOffset;
-              const isSelected = entry.id === selectionId;
-
-              return (
-                <button
-                  key={entry.id}
-                  className={`log-row log-row--${level.toLowerCase()}${absoluteIndex % 2 === 1 ? " log-row--striped" : ""}${isSelected ? " log-row--selected" : ""}`}
-                  style={{ height: ROW_HEIGHT }}
-                  aria-label={`Select log entry ${absoluteIndex + 1}`}
-                  aria-pressed={isSelected}
-                  tabIndex={-1}
-                  onMouseDown={(event) => event.preventDefault()}
-                  onClick={() => {
-                    setSelectionId(entry.id);
-                    focusViewport();
-                  }}
-                  onDoubleClick={() => setIsDetailOpen(true)}
-                >
-                  <span className="log-row__time">{renderHighlightedText(formatRowTime(entry) || "Unparsed", deferredQuery)}</span>
-                  <span
-                    className="log-row__level"
-                    style={{ color: entry.level ? LEVEL_COLORS[entry.level] : "var(--text-faint)" }}
-                  >
-                    {renderHighlightedText(level, deferredQuery)}
-                  </span>
-                  <span className="log-row__message">
-                    {entry.category ? <span className="log-row__category">{renderHighlightedText(entry.category, deferredQuery)}</span> : null}
-                    <span className="log-row__body">{renderHighlightedText(entry.message, deferredQuery)}</span>
-                  </span>
-                </button>
-              );
-            })}
-            <div style={{ height: bottomSpacerHeight }} aria-hidden="true" />
-          </div>
+          <VirtualLogList
+            entries={filteredEntries}
+            query={deferredQuery}
+            selectedIndex={selectedIndex}
+            selectionId={selectionId}
+            viewportRef={scrollViewportRef}
+            onOpenDetail={() => setIsDetailOpen(true)}
+            onSelectEntry={(entryId) => {
+              setSelectionId(entryId);
+              focusViewport();
+            }}
+          />
         ) : (
           <section className="empty-state">
             <p className="empty-state__eyebrow">Minimal log viewer</p>
