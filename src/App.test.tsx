@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
@@ -18,8 +18,33 @@ describe("App", () => {
     fireEvent.keyDown(window, { key: "ArrowDown" });
     fireEvent.keyDown(window, { key: "Enter" });
 
-    expect(await screen.findByRole("dialog", { name: "Entry detail" })).toBeInTheDocument();
-    expect(screen.getByText(/Selected entry 2\/480/)).toBeInTheDocument();
+    const dialog = await screen.findByRole("dialog", { name: "Entry detail" });
+
+    expect(dialog).toBeInTheDocument();
+    expect(within(dialog).getByText("2 / 480")).toBeInTheDocument();
+    expect(within(dialog).getByText("Message")).toBeInTheDocument();
+  }, 10000);
+
+  it("shows a minimal date category and message detail layout", async () => {
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await user.click(screen.getByRole("button", { name: "Open bundled sample" }));
+    await screen.findByText("480 of 480 lines");
+
+    await user.click(screen.getByRole("button", { name: "Select log entry 25" }));
+    fireEvent.keyDown(window, { key: "Enter" });
+
+    const dialog = await screen.findByRole("dialog", { name: "Entry detail" });
+
+    expect(dialog).toBeInTheDocument();
+    expect(within(dialog).getByText("25 / 480")).toBeInTheDocument();
+    expect(within(dialog).getByText("2026-06-03 09:00:02.124")).toBeInTheDocument();
+    expect(within(dialog).getByText("ERROR")).toBeInTheDocument();
+    expect(within(dialog).getByText("Infrastructure.Storage.BlobUploader")).toBeInTheDocument();
+    expect(within(dialog).getByText(/Database command failed/)).toBeInTheDocument();
+    expect(within(dialog).queryByRole("button", { name: /Copy/i })).not.toBeInTheDocument();
   }, 10000);
 
   it("keeps focus on the viewport after clicking a row so arrow navigation does not leave a stale row focus ring", async () => {
@@ -60,6 +85,40 @@ describe("App", () => {
 
     expect((await screen.findAllByText(`${matchingLineCount} of 480 lines`)).length).toBeGreaterThan(0);
     expect(screen.getAllByText(/Queue lag exceeded threshold/i).length).toBeGreaterThan(0);
+  }, 10000);
+
+  it("can hide and restore the explorer panel", async () => {
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    const layout = screen.getByLabelText("Log viewer layout");
+    const divider = screen.getByRole("separator", { name: "Resize or hide explorer" });
+    expect(layout.getAttribute("style")).toContain("--explorer-width: 280px");
+
+    await user.click(divider);
+
+    expect(layout.getAttribute("style")).toContain("--explorer-width: 0px");
+    expect(screen.getByRole("separator", { name: "Show explorer" })).toBeInTheDocument();
+
+    await user.click(screen.getByRole("separator", { name: "Show explorer" }));
+
+    expect(layout.getAttribute("style")).toContain("--explorer-width: 280px");
+    expect(screen.getByRole("separator", { name: "Resize or hide explorer" })).toBeInTheDocument();
+  }, 10000);
+
+  it("resizes the explorer panel from the divider without collapsing it", () => {
+    render(<App />);
+
+    const layout = screen.getByLabelText("Log viewer layout");
+    const divider = screen.getByRole("separator", { name: "Resize or hide explorer" });
+
+    fireEvent.mouseDown(divider, { button: 0, clientX: 280 });
+    fireEvent.mouseMove(window, { clientX: 360 });
+    fireEvent.mouseUp(window);
+
+    expect(layout.getAttribute("style")).toContain("--explorer-width: 360px");
+    expect(layout.getAttribute("style")).not.toContain("--explorer-width: 0px");
   }, 10000);
 
   it("copies selected raw log line with Ctrl/Cmd+C when no text selection is active", async () => {

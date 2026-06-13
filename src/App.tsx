@@ -1,6 +1,8 @@
 import {
   CSSProperties,
   ChangeEvent,
+  KeyboardEvent as ReactKeyboardEvent,
+  MouseEvent as ReactMouseEvent,
   startTransition,
   useDeferredValue,
   useEffect,
@@ -13,10 +15,14 @@ import { LOG_ROW_HEIGHT, VirtualLogList } from "./components/VirtualLogList";
 import { formatDetailTime, LEVEL_COLORS, parseLogText } from "./lib/logs";
 import { CurrentFile, LOG_LEVELS, LogEntry, LogLevel, VisibleLevel } from "./types";
 
-const CHROME_IDLE_MS = 1800;
 const FILTER_LEVELS = [...LOG_LEVELS, "RAW"] as const;
 
 type OverlayKind = "palette" | "search" | "filters" | null;
+
+const DEFAULT_EXPLORER_WIDTH = 280;
+const MIN_EXPLORER_WIDTH = 220;
+const MAX_EXPLORER_WIDTH = 520;
+const EXPLORER_RESIZE_STEP = 24;
 
 function buildDetailText(entry: LogEntry | null, selectedIndex: number, totalEntries: number): string {
   if (!entry) {
@@ -114,15 +120,17 @@ export default function App() {
   const [activeLevels, setActiveLevels] = useState<VisibleLevel[]>([...FILTER_LEVELS]);
   const [activeOverlay, setActiveOverlay] = useState<OverlayKind>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
-  const [isChromeVisible, setIsChromeVisible] = useState(true);
+  const [isExplorerOpen, setIsExplorerOpen] = useState(true);
+  const [explorerWidth, setExplorerWidth] = useState(DEFAULT_EXPLORER_WIDTH);
 
   const deferredQuery = useDeferredValue(query.trim().toLowerCase());
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const scrollViewportRef = useRef<HTMLDivElement | null>(null);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const commandInputRef = useRef<HTMLInputElement | null>(null);
-  const chromeTimerRef = useRef<number | null>(null);
   const noticeTimerRef = useRef<number | null>(null);
+  const resizeSessionRef = useRef<{ didDrag: boolean; startWidth: number; startX: number } | null>(null);
+  const skipDividerClickRef = useRef(false);
 
   const activeLevelSet = useMemo(() => new Set(activeLevels), [activeLevels]);
   const filteredEntries = useMemo(() => {
@@ -139,12 +147,27 @@ export default function App() {
   const resultLabel = hasLoadedEntries
     ? `${formatCount(filteredEntries.length)} of ${formatCount(entries.length)} lines`
     : "No log loaded";
+  const levelCounts = useMemo(() => {
+    const counts = new Map<VisibleLevel, number>(FILTER_LEVELS.map((level) => [level, 0]));
+    entries.forEach((entry) => {
+      counts.set(entry.visibleLevel, (counts.get(entry.visibleLevel) ?? 0) + 1);
+    });
+    return counts;
+  }, [entries]);
+  const layoutStyle = useMemo(
+    () =>
+      ({
+        "--explorer-width": isExplorerOpen ? `${explorerWidth}px` : "0px",
+      }) as CSSProperties,
+    [explorerWidth, isExplorerOpen],
+  );
 
-  function clearChromeTimer(): void {
-    if (chromeTimerRef.current !== null) {
-      window.clearTimeout(chromeTimerRef.current);
-      chromeTimerRef.current = null;
-    }
+  function getMaxExplorerWidth(): number {
+    return Math.min(MAX_EXPLORER_WIDTH, Math.max(MIN_EXPLORER_WIDTH, Math.floor(window.innerWidth * 0.45)));
+  }
+
+  function clampExplorerWidth(nextWidth: number): number {
+    return Math.min(getMaxExplorerWidth(), Math.max(MIN_EXPLORER_WIDTH, nextWidth));
   }
 
   function clearNoticeTimer(): void {
@@ -163,25 +186,6 @@ export default function App() {
       setCopiedEntryId(null);
       noticeTimerRef.current = null;
     }, 2200);
-  }
-
-  function scheduleChromeHide(): void {
-    clearChromeTimer();
-    if (activeOverlay || isDetailOpen) {
-      return;
-    }
-
-    chromeTimerRef.current = window.setTimeout(() => {
-      setIsChromeVisible(false);
-    }, CHROME_IDLE_MS);
-  }
-
-  function revealChrome(sticky = false): void {
-    setIsChromeVisible(true);
-    clearChromeTimer();
-    if (!sticky) {
-      scheduleChromeHide();
-    }
   }
 
   function closeTransientUi(): void {
@@ -229,8 +233,6 @@ export default function App() {
   }
 
   async function openFromPicker(): Promise<void> {
-    revealChrome(true);
-
     try {
       if (typeof window.showOpenFilePicker === "function") {
         const [handle] = await window.showOpenFilePicker({
@@ -274,7 +276,6 @@ export default function App() {
   }
 
   function openSample(): void {
-    revealChrome(true);
     loadEntries(
       {
         label: "examples/nlog.log",
@@ -399,6 +400,79 @@ export default function App() {
     });
   }
 
+  function openExplorer(): void {
+    setIsExplorerOpen(true);
+    setExplorerWidth((currentWidth) => clampExplorerWidth(currentWidth));
+  }
+
+  function toggleExplorer(): void {
+    if (isExplorerOpen) {
+      setIsExplorerOpen(false);
+      return;
+    }
+
+    openExplorer();
+  }
+
+  function resizeExplorer(nextWidth: number): void {
+    setIsExplorerOpen(true);
+    setExplorerWidth(clampExplorerWidth(nextWidth));
+  }
+
+  function handleExplorerResizeStart(event: ReactMouseEvent<HTMLDivElement>): void {
+    if (event.button !== 0 || !isExplorerOpen) {
+      return;
+    }
+
+    event.preventDefault();
+    resizeSessionRef.current = {
+      didDrag: false,
+      startWidth: explorerWidth,
+      startX: event.clientX,
+    };
+    document.body.classList.add("is-resizing");
+  }
+
+  function handleExplorerDividerClick(): void {
+    if (skipDividerClickRef.current) {
+      skipDividerClickRef.current = false;
+      return;
+    }
+
+    toggleExplorer();
+  }
+
+  function handleExplorerResizeKeyDown(event: ReactKeyboardEvent<HTMLDivElement>): void {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      toggleExplorer();
+      return;
+    }
+
+    if (event.key === "ArrowLeft") {
+      event.preventDefault();
+      resizeExplorer((isExplorerOpen ? explorerWidth : DEFAULT_EXPLORER_WIDTH) - EXPLORER_RESIZE_STEP);
+      return;
+    }
+
+    if (event.key === "ArrowRight") {
+      event.preventDefault();
+      resizeExplorer((isExplorerOpen ? explorerWidth : DEFAULT_EXPLORER_WIDTH) + EXPLORER_RESIZE_STEP);
+      return;
+    }
+
+    if (event.key === "Home") {
+      event.preventDefault();
+      resizeExplorer(MIN_EXPLORER_WIDTH);
+      return;
+    }
+
+    if (event.key === "End") {
+      event.preventDefault();
+      resizeExplorer(getMaxExplorerWidth());
+    }
+  }
+
   useEffect(() => {
     if (filteredEntries.length === 0) {
       setSelectionId(null);
@@ -419,22 +493,53 @@ export default function App() {
   }, [activeOverlay, hasLoadedEntries, isDetailOpen]);
 
   useEffect(() => {
-    revealChrome();
+    const onMouseMove = (event: MouseEvent): void => {
+      const resizeSession = resizeSessionRef.current;
+      if (!resizeSession) {
+        return;
+      }
 
-    const onActivity = (): void => revealChrome();
+      resizeSession.didDrag = resizeSession.didDrag || Math.abs(event.clientX - resizeSession.startX) > 3;
+      resizeExplorer(resizeSession.startWidth + event.clientX - resizeSession.startX);
+    };
 
-    window.addEventListener("mousemove", onActivity);
-    window.addEventListener("touchstart", onActivity);
-    window.addEventListener("focusin", onActivity);
+    const onMouseUp = (): void => {
+      const resizeSession = resizeSessionRef.current;
+      if (!resizeSession) {
+        return;
+      }
+
+      skipDividerClickRef.current = resizeSession.didDrag;
+      resizeSessionRef.current = null;
+      document.body.classList.remove("is-resizing");
+    };
+
+    window.addEventListener("mousemove", onMouseMove);
+    window.addEventListener("mouseup", onMouseUp);
 
     return () => {
-      window.removeEventListener("mousemove", onActivity);
-      window.removeEventListener("touchstart", onActivity);
-      window.removeEventListener("focusin", onActivity);
-      clearChromeTimer();
+      window.removeEventListener("mousemove", onMouseMove);
+      window.removeEventListener("mouseup", onMouseUp);
+      document.body.classList.remove("is-resizing");
+    };
+  }, []);
+
+  useEffect(() => {
+    const onResize = (): void => {
+      setExplorerWidth((currentWidth) => clampExplorerWidth(currentWidth));
+    };
+
+    window.addEventListener("resize", onResize);
+    return () => {
+      window.removeEventListener("resize", onResize);
+    };
+  }, []);
+
+  useEffect(() => {
+    return () => {
       clearNoticeTimer();
     };
-  }, [activeOverlay, isDetailOpen]);
+  }, []);
 
   useEffect(() => {
     if (activeOverlay === "search") {
@@ -464,7 +569,6 @@ export default function App() {
 
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
         event.preventDefault();
-        revealChrome(true);
         setCommandQuery("");
         setActiveOverlay("palette");
         return;
@@ -508,14 +612,12 @@ export default function App() {
 
       if (event.key === "/") {
         event.preventDefault();
-        revealChrome(true);
         setActiveOverlay("search");
         return;
       }
 
       if (event.key.toLowerCase() === "f") {
         event.preventDefault();
-        revealChrome(true);
         setActiveOverlay("filters");
         return;
       }
@@ -634,6 +736,15 @@ export default function App() {
       },
     },
     {
+      id: "explorer",
+      label: isExplorerOpen ? "Hide explorer" : "Show explorer",
+      hint: "",
+      run: () => {
+        toggleExplorer();
+        setActiveOverlay(null);
+      },
+    },
+    {
       id: "copy-line",
       label: "Copy selected line",
       hint: "Ctrl/Cmd+C",
@@ -684,113 +795,203 @@ export default function App() {
   ].filter((item) => item.label.toLowerCase().includes(commandQuery.trim().toLowerCase()));
 
   return (
-    <div className="viewer-shell" onMouseMove={() => revealChrome()} onMouseLeave={() => scheduleChromeHide()}>
+    <div className="viewer-shell">
       <input ref={fileInputRef} type="file" accept=".log,.txt" hidden onChange={handleFileInputChange} />
 
       <main className="viewer-stage" aria-label="Log viewer">
-        {hasLoadedEntries ? (
-          <VirtualLogList
-            copiedEntryId={copiedEntryId}
-            entries={filteredEntries}
-            query={deferredQuery}
-            selectedIndex={selectedIndex}
-            selectionId={selectionId}
-            viewportRef={scrollViewportRef}
-            onCopyEntry={(entry) => {
-              void copyEntry(entry)
-                .catch((error: unknown) => {
-                  setErrorMessage(error instanceof Error ? error.message : "Unable to copy the selected log line.");
-                });
-            }}
-            onOpenDetail={() => setIsDetailOpen(true)}
-            onSelectEntry={(entryId) => {
-              setSelectionId(entryId);
-              focusViewport();
-            }}
-          />
-        ) : (
-          <section className="empty-state">
-            <p className="empty-state__eyebrow">Minimal log viewer</p>
-            <h1>Logs stay full-screen. Controls stay out of the way.</h1>
-            <p>{statusMessage}</p>
-            <div className="empty-state__actions">
-              <button className="glass-button glass-button--strong" onClick={() => void openFromPicker()}>
-                Open log file
-              </button>
-              <button className="glass-button" onClick={openSample}>
-                Open bundled sample
-              </button>
-            </div>
-            <p className="empty-state__hint">Use `Ctrl/Cmd+O` open, `/` search, `F` filter, `Ctrl/Cmd+C` copy, `PgUp/PgDn` move fast.</p>
-          </section>
-        )}
+        <div className={`workbench${isExplorerOpen ? "" : " workbench--explorer-collapsed"}`} aria-label="Log viewer layout" style={layoutStyle}>
+          <nav className="activity-rail" aria-label="Primary tools">
+            <button
+              className={`activity-button${isExplorerOpen ? " activity-button--active" : ""}`}
+              onClick={toggleExplorer}
+              aria-label={isExplorerOpen ? "Hide explorer" : "Show explorer"}
+              title={isExplorerOpen ? "Hide explorer" : "Show explorer"}
+            >
+              LOG
+            </button>
+            <button className="activity-button" onClick={() => setActiveOverlay("search")} aria-label="Search logs" title="Search logs">
+              /
+            </button>
+            <button className="activity-button" onClick={() => setActiveOverlay("filters")} aria-label="Filter severities" title="Filter severities">
+              F
+            </button>
+            <button
+              className="activity-button"
+              onClick={() => {
+                setCommandQuery("");
+                setActiveOverlay("palette");
+              }}
+              aria-label="Command palette"
+              title="Command palette"
+            >
+              K
+            </button>
+          </nav>
 
-        <div className={`chrome-layer${isChromeVisible || activeOverlay ? " chrome-layer--visible" : ""}`}>
-          <div className="chrome-bar">
-            <div className="glass-chip chrome-cluster chrome-cluster--file">
-              <span className="chrome-label">File</span>
-              <strong>{currentFile?.label ?? "No file open"}</strong>
-              {currentFile ? <span>{formatFileSize(currentFile.size)}</span> : null}
-            </div>
+          {isExplorerOpen ? (
+            <aside className="explorer-pane" aria-label="Log explorer">
+              <div className="explorer-section">
+                <div className="explorer-heading">Explorer</div>
+                <button className="file-node file-node--active" onClick={() => void openFromPicker()}>
+                  <span className="file-node__name">{currentFile?.label ?? "Open log file"}</span>
+                  <span>{currentFile ? formatFileSize(currentFile.size) : "Ctrl/Cmd+O"}</span>
+                </button>
+                <button className="file-node" onClick={openSample}>
+                  <span className="file-node__name">examples/nlog.log</span>
+                  <span>sample</span>
+                </button>
+              </div>
 
-            <div className="chrome-cluster chrome-cluster--actions">
-              <button className="glass-button" onClick={() => void openFromPicker()}>
-                Open
-              </button>
-              <button className="glass-button" onClick={() => setActiveOverlay("search")}>
-                Search <kbd>/</kbd>
-              </button>
-              <button className="glass-button" onClick={() => setActiveOverlay("filters")}>
-                Filter <kbd>F</kbd>
-              </button>
-              <button
-                className="glass-button"
-                disabled={!selectedEntry}
-                onClick={() => {
-                  void copySelectedLine().catch((error: unknown) => {
-                    setErrorMessage(error instanceof Error ? error.message : "Unable to copy the selected log line.");
-                  });
-                }}
-              >
-                Copy line <kbd>Ctrl/Cmd+C</kbd>
-              </button>
-              <button
-                className="glass-button"
-                onClick={() => {
-                  setCommandQuery("");
-                  setActiveOverlay("palette");
-                }}
-              >
-                Commands <kbd>Ctrl/Cmd+K</kbd>
-              </button>
-            </div>
+              <div className="explorer-section explorer-section--levels">
+                <div className="explorer-heading">Severity</div>
+                {FILTER_LEVELS.map((level) => {
+                  const isActive = activeLevels.includes(level);
+                  const swatch = level === "RAW" ? "var(--text-faint)" : LEVEL_COLORS[level as LogLevel];
+
+                  return (
+                    <button
+                      key={level}
+                      className={`level-node${isActive ? " level-node--active" : ""}`}
+                      onClick={() => toggleLevel(level)}
+                      style={{ "--filter-color": swatch } as CSSProperties}
+                    >
+                      <span>{level}</span>
+                      <span>{formatCount(levelCounts.get(level) ?? 0)}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </aside>
+          ) : (
+            <aside className="explorer-pane explorer-pane--collapsed" aria-hidden="true" />
+          )}
+
+          <div
+            className={`explorer-divider${isExplorerOpen ? "" : " explorer-divider--collapsed"}`}
+            role="separator"
+            aria-label={isExplorerOpen ? "Resize or hide explorer" : "Show explorer"}
+            aria-orientation="vertical"
+            aria-valuemin={MIN_EXPLORER_WIDTH}
+            aria-valuemax={getMaxExplorerWidth()}
+            aria-valuenow={isExplorerOpen ? explorerWidth : 0}
+            tabIndex={0}
+            onClick={handleExplorerDividerClick}
+            onMouseDown={handleExplorerResizeStart}
+            onKeyDown={handleExplorerResizeKeyDown}
+          >
+            <span className="explorer-divider__grip" aria-hidden="true" />
           </div>
+
+          <section className="editor-pane" aria-label="Log editor">
+            <div className="chrome-layer">
+              <div className="chrome-bar">
+                <div className="editor-tabs">
+                  <div className="editor-tab editor-tab--active">
+                    <strong>{currentFile?.label ?? "Untitled log"}</strong>
+                    {currentFile ? <span>{formatFileSize(currentFile.size)}</span> : null}
+                  </div>
+                </div>
+
+                <div className="chrome-cluster chrome-cluster--actions">
+                  <button className="glass-button" onClick={() => void openFromPicker()}>
+                    Open
+                  </button>
+                  <button className="glass-button" onClick={toggleExplorer}>
+                    {isExplorerOpen ? "Hide sidebar" : "Show sidebar"}
+                  </button>
+                  <button className="glass-button" onClick={() => setActiveOverlay("search")}>
+                    Search <kbd>/</kbd>
+                  </button>
+                  <button className="glass-button" onClick={() => setActiveOverlay("filters")}>
+                    Filter <kbd>F</kbd>
+                  </button>
+                  <button
+                    className="glass-button"
+                    disabled={!selectedEntry}
+                    onClick={() => {
+                      void copySelectedLine().catch((error: unknown) => {
+                        setErrorMessage(error instanceof Error ? error.message : "Unable to copy the selected log line.");
+                      });
+                    }}
+                  >
+                    Copy line <kbd>Ctrl/Cmd+C</kbd>
+                  </button>
+                  <button
+                    className="glass-button"
+                    onClick={() => {
+                      setCommandQuery("");
+                      setActiveOverlay("palette");
+                    }}
+                  >
+                    Commands <kbd>Ctrl/Cmd+K</kbd>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {hasLoadedEntries ? (
+              <VirtualLogList
+                copiedEntryId={copiedEntryId}
+                entries={filteredEntries}
+                query={deferredQuery}
+                selectedIndex={selectedIndex}
+                selectionId={selectionId}
+                viewportRef={scrollViewportRef}
+                onCopyEntry={(entry) => {
+                  void copyEntry(entry)
+                    .catch((error: unknown) => {
+                      setErrorMessage(error instanceof Error ? error.message : "Unable to copy the selected log line.");
+                    });
+                }}
+                onOpenDetail={() => setIsDetailOpen(true)}
+                onSelectEntry={(entryId) => {
+                  setSelectionId(entryId);
+                  focusViewport();
+                }}
+              />
+            ) : (
+              <section className="empty-state">
+                <p className="empty-state__eyebrow">Minimal log viewer</p>
+                <h1>Open a log, scan like code.</h1>
+                <p>{statusMessage}</p>
+                <div className="empty-state__actions">
+                  <button className="glass-button glass-button--strong" onClick={() => void openFromPicker()}>
+                    Open log file
+                  </button>
+                  <button className="glass-button" onClick={openSample}>
+                    Open bundled sample
+                  </button>
+                </div>
+                <p className="empty-state__hint">Ctrl/Cmd+O open, / search, F filter, Ctrl/Cmd+C copy, PgUp/PgDn move fast.</p>
+              </section>
+            )}
+
+            <div className="status-stack">
+              <div className="glass-chip status-pill">
+                <strong>{resultLabel}</strong>
+                {query ? <span>search: {query}</span> : null}
+                {!isAllLevelsActive ? <span>{activeLevels.join(" ")}</span> : null}
+              </div>
+
+              {selectedEntry ? (
+                <button className="glass-chip status-pill status-pill--interactive" onClick={() => setIsDetailOpen((current) => !current)}>
+                  <strong>
+                    {selectedIndex + 1}/{filteredEntries.length}
+                  </strong>
+                  <span>{selectedEntry.level ?? "RAW"}</span>
+                  <span>{selectedEntry.category ?? "Uncategorized"}</span>
+                  <span>Ln {selectedEntry.id + 1}</span>
+                </button>
+              ) : null}
+            </div>
+          </section>
         </div>
 
         {errorMessage ? <div className="floating-banner" role="alert">{errorMessage}</div> : null}
         {!errorMessage && noticeMessage ? <div className="floating-banner floating-banner--notice" role="status">{noticeMessage}</div> : null}
 
-        <div className="status-stack">
-          <div className="glass-chip status-pill">
-            <strong>{resultLabel}</strong>
-            {query ? <span>search: {query}</span> : null}
-            {!isAllLevelsActive ? <span>{activeLevels.join(" ")}</span> : null}
-          </div>
-
-          {selectedEntry ? (
-            <button className="glass-chip status-pill status-pill--interactive" onClick={() => setIsDetailOpen((current) => !current)}>
-              <strong>
-                {selectedIndex + 1}/{filteredEntries.length}
-              </strong>
-              <span>{selectedEntry.level ?? "RAW"}</span>
-              <span>{selectedEntry.category ?? "Uncategorized"}</span>
-              <span>Ln {selectedEntry.id + 1}</span>
-            </button>
-          ) : null}
-        </div>
-
         {activeOverlay === "search" ? (
-          <div className="overlay-card overlay-card--search" role="search" onMouseEnter={() => revealChrome(true)}>
+          <div className="overlay-card overlay-card--search" role="search">
             <label className="overlay-field">
               <span className="overlay-field__prefix">/</span>
               <input
@@ -811,7 +1012,7 @@ export default function App() {
         ) : null}
 
         {activeOverlay === "filters" ? (
-          <div className="overlay-card overlay-card--filters" role="dialog" aria-label="Severity filters" onMouseEnter={() => revealChrome(true)}>
+          <div className="overlay-card overlay-card--filters" role="dialog" aria-label="Severity filters">
             <div className="overlay-heading">
               <strong>Severity filters</strong>
               <button className="overlay-link" onClick={() => setActiveOverlay(null)}>
@@ -873,31 +1074,56 @@ export default function App() {
         {isDetailOpen && selectedEntry ? (
           <>
             <button className="overlay-scrim overlay-scrim--soft" aria-label="Close entry detail" onClick={() => setIsDetailOpen(false)} />
-            <aside className="detail-drawer" role="dialog" aria-label="Entry detail" onMouseEnter={() => revealChrome(true)}>
+            <aside
+              className="detail-drawer"
+              role="dialog"
+              aria-label="Entry detail"
+              style={
+                {
+                  "--detail-accent": selectedEntry.level ? LEVEL_COLORS[selectedEntry.level] : "var(--accent)",
+                } as CSSProperties
+              }
+            >
               <div className="detail-drawer__header">
                 <div>
-                  <p>Entry detail</p>
-                  <strong>
-                    {selectedIndex + 1} of {filteredEntries.length}
-                  </strong>
+                  <div className="detail-drawer__eyebrow">
+                    <p>Entry detail</p>
+                  </div>
+                  <strong className="detail-drawer__title">{selectedIndex + 1} / {filteredEntries.length}</strong>
                 </div>
                 <div className="detail-drawer__actions">
-                  <button
-                    className="glass-button"
-                    onClick={() => {
-                      void copySelectedDetail().catch((error: unknown) => {
-                        setErrorMessage(error instanceof Error ? error.message : "Unable to copy the selected log detail.");
-                      });
-                    }}
-                  >
-                    Copy detail
-                  </button>
                   <button className="glass-button" onClick={() => setIsDetailOpen(false)}>
                     Close
                   </button>
                 </div>
               </div>
-              <pre>{buildDetailText(selectedEntry, selectedIndex, filteredEntries.length)}</pre>
+              <div className="detail-drawer__content">
+                <dl className="detail-list" aria-label="Entry fields">
+                  <div className="detail-list__row">
+                    <dt>Date</dt>
+                    <dd>{selectedEntry.timestampMs ? formatDetailTime(selectedEntry.timestampMs) : "Unparsed"}</dd>
+                  </div>
+                  <div className="detail-list__row">
+                    <dt>Level</dt>
+                    <dd>
+                      <span
+                        className="detail-level"
+                        style={{ color: selectedEntry.level ? LEVEL_COLORS[selectedEntry.level] : "var(--text-faint)" }}
+                      >
+                        {selectedEntry.level ?? "RAW"}
+                      </span>
+                    </dd>
+                  </div>
+                  <div className="detail-list__row">
+                    <dt>Category</dt>
+                    <dd>{selectedEntry.category ?? "Uncategorized"}</dd>
+                  </div>
+                  <div className="detail-list__row detail-list__row--message">
+                    <dt>Message</dt>
+                    <dd>{selectedEntry.message}</dd>
+                  </div>
+                </dl>
+              </div>
             </aside>
           </>
         ) : null}
