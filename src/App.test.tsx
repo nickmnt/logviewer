@@ -87,6 +87,22 @@ describe("App", () => {
     expect(screen.getAllByText(/Queue lag exceeded threshold/i).length).toBeGreaterThan(0);
   }, 10000);
 
+  it("opens search with Ctrl/Cmd+F instead of the severity filters", async () => {
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await user.click(screen.getByRole("button", { name: "Open bundled sample" }));
+    await screen.findByText("480 of 480 lines");
+
+    fireEvent.keyDown(window, { key: "f", ctrlKey: true });
+
+    await waitFor(() => {
+      expect(screen.getByRole("textbox", { name: "Search logs" })).toHaveFocus();
+    });
+    expect(screen.queryByRole("dialog", { name: "Severity filters" })).not.toBeInTheDocument();
+  }, 10000);
+
   it("can hide and restore the explorer panel", async () => {
     const user = userEvent.setup();
 

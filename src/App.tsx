@@ -574,6 +574,12 @@ export default function App() {
         return;
       }
 
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "f") {
+        event.preventDefault();
+        setActiveOverlay("search");
+        return;
+      }
+
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "c" && !targetIsTyping && !hasDocumentSelection()) {
         event.preventDefault();
         void copySelectedLine().catch((error: unknown) => {
