@@ -14,7 +14,7 @@ import {
 } from "react";
 import sampleLogText from "../examples/nlog.log?raw";
 import { LOG_ROW_HEIGHT, VirtualLogList } from "./components/VirtualLogList";
-import { formatDetailTime, LEVEL_COLORS, parseLogText } from "./lib/logs";
+import { formatDetailTime, getLogEntrySearchText, LEVEL_COLORS, parseLogLines, splitLogLines } from "./lib/logs";
 import { splitMessageBlocks } from "./lib/messageDetail";
 import { CurrentFile, LOG_LEVELS, LogEntry, LogLevel, VisibleLevel } from "./types";
 
@@ -26,6 +26,7 @@ const DEFAULT_EXPLORER_WIDTH = 280;
 const MIN_EXPLORER_WIDTH = 220;
 const MAX_EXPLORER_WIDTH = 520;
 const EXPLORER_RESIZE_STEP = 24;
+const PARSE_CHUNK_SIZE = 2000;
 
 function buildDetailText(entry: LogEntry | null, selectedIndex: number, totalEntries: number): string {
   if (!entry) {
@@ -85,6 +86,12 @@ function isFilePickerCancellation(error: unknown): boolean {
 
 function hasDocumentSelection(): boolean {
   return (window.getSelection()?.toString().trim().length ?? 0) > 0;
+}
+
+function yieldToBrowser(): Promise<void> {
+  return new Promise((resolve) => {
+    window.setTimeout(resolve, 0);
+  });
 }
 
 async function copyTextToClipboard(text: string): Promise<void> {
@@ -152,23 +159,27 @@ export default function App() {
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const commandInputRef = useRef<HTMLInputElement | null>(null);
   const noticeTimerRef = useRef<number | null>(null);
+  const loadSessionRef = useRef(0);
   const resizeSessionRef = useRef<{ didDrag: boolean; startWidth: number; startX: number } | null>(null);
   const skipDividerClickRef = useRef(false);
 
   const activeLevelSet = useMemo(() => new Set(activeLevels), [activeLevels]);
+  const isAllLevelsActive = activeLevels.length === FILTER_LEVELS.length;
   const filteredEntries = useMemo(() => {
-    return entries.filter((entry) => activeLevelSet.has(entry.visibleLevel) && (!deferredQuery || entry.searchText.includes(deferredQuery)));
-  }, [activeLevelSet, deferredQuery, entries]);
+    if (isAllLevelsActive && !deferredQuery) {
+      return entries;
+    }
 
-  const selectedIndexById = useMemo(() => {
-    return new Map(filteredEntries.map((entry, index) => [entry.id, index]));
-  }, [filteredEntries]);
-  const selectedIndex = selectionId === null ? -1 : (selectedIndexById.get(selectionId) ?? -1);
+    return entries.filter((entry) => {
+      return activeLevelSet.has(entry.visibleLevel) && (!deferredQuery || getLogEntrySearchText(entry).includes(deferredQuery));
+    });
+  }, [activeLevelSet, deferredQuery, entries, isAllLevelsActive]);
+
+  const selectedIndex = selectionId === null ? -1 : filteredEntries.findIndex((entry) => entry.id === selectionId);
   const selectedEntry = selectedIndex === -1 ? null : filteredEntries[selectedIndex] ?? null;
   const selectedMessageBlocks = useMemo(() => {
     return selectedEntry ? splitMessageBlocks(selectedEntry.message) : [];
   }, [selectedEntry]);
-  const isAllLevelsActive = activeLevels.length === FILTER_LEVELS.length;
   const hasLoadedEntries = entries.length > 0;
   const resultLabel = hasLoadedEntries
     ? `${formatCount(filteredEntries.length)} of ${formatCount(entries.length)} lines`
@@ -242,17 +253,55 @@ export default function App() {
     scrollViewportRef.current?.scrollTo({ top: 0, behavior: "auto" });
   }
 
+  async function appendEntriesInChunks(loadSession: number, lines: string[], nextStatus: string): Promise<void> {
+    for (let startIndex = 0; startIndex < lines.length; startIndex += PARSE_CHUNK_SIZE) {
+      if (loadSessionRef.current !== loadSession) {
+        return;
+      }
+
+      const endIndex = Math.min(lines.length, startIndex + PARSE_CHUNK_SIZE);
+      const parsedEntries = parseLogLines(lines.slice(startIndex, endIndex), startIndex);
+
+      startTransition(() => {
+        if (loadSessionRef.current !== loadSession) {
+          return;
+        }
+
+        setEntries((currentEntries) => currentEntries.concat(parsedEntries));
+        setStatusMessage(`Loading ${formatCount(endIndex)} / ${formatCount(lines.length)} lines...`);
+      });
+
+      await yieldToBrowser();
+    }
+
+    if (loadSessionRef.current === loadSession) {
+      setStatusMessage(nextStatus);
+    }
+  }
+
   function loadEntries(file: CurrentFile, text: string, nextStatus: string): void {
-    const parsedEntries = parseLogText(text);
+    const lines = splitLogLines(text);
+    const loadSession = loadSessionRef.current + 1;
+    loadSessionRef.current = loadSession;
 
     startTransition(() => {
       setCurrentFile(file);
-      setEntries(parsedEntries);
+      setEntries([]);
       setFileText(text);
-      setSelectionId(parsedEntries[0]?.id ?? null);
+      setSelectionId(null);
       setErrorMessage(null);
-      setStatusMessage(nextStatus);
+      setStatusMessage(lines.length === 0 ? nextStatus : `Loading 0 / ${formatCount(lines.length)} lines...`);
       resetViewState();
+    });
+
+    if (lines.length === 0) {
+      return;
+    }
+
+    void appendEntriesInChunks(loadSession, lines, nextStatus).catch((error: unknown) => {
+      if (loadSessionRef.current === loadSession) {
+        setErrorMessage(error instanceof Error ? error.message : "Unable to parse the log file.");
+      }
     });
   }
 

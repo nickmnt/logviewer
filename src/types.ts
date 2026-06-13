@@ -13,7 +13,6 @@ export interface LogEntry {
   visibleLevel: VisibleLevel;
   category: string | null;
   isParsed: boolean;
-  searchText: string;
 }
 
 export interface CurrentFile {

@@ -178,7 +178,7 @@ export function VirtualLogList({
               {renderHighlightedText(entry.visibleLevel, query)}
             </span>
             <span className="log-row__category">{renderHighlightedText(entry.category ?? "Uncategorized", query)}</span>
-            <span className="log-row__message" title={entry.raw}>
+            <span className="log-row__message">
               {renderHighlightedText(entry.message, query)}
             </span>
           </div>
