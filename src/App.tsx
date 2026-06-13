@@ -143,6 +143,7 @@ export default function App() {
   const [activeLevels, setActiveLevels] = useState<VisibleLevel[]>([...FILTER_LEVELS]);
   const [activeOverlay, setActiveOverlay] = useState<OverlayKind>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
+  const [isDetailExpanded, setIsDetailExpanded] = useState(false);
   const [isExplorerOpen, setIsExplorerOpen] = useState(true);
   const [explorerWidth, setExplorerWidth] = useState(DEFAULT_EXPLORER_WIDTH);
 
@@ -509,6 +510,12 @@ export default function App() {
       setSelectionId(filteredEntries[0]?.id ?? null);
     }
   }, [filteredEntries, selectedIndex, selectionId]);
+
+  useEffect(() => {
+    if (!isDetailOpen) {
+      setIsDetailExpanded(false);
+    }
+  }, [isDetailOpen]);
 
   useEffect(() => {
     if (!hasLoadedEntries || activeOverlay || isDetailOpen) {
@@ -1107,7 +1114,7 @@ export default function App() {
           <>
             <button className="overlay-scrim overlay-scrim--soft" aria-label="Close entry detail" onClick={() => setIsDetailOpen(false)} />
             <aside
-              className="detail-drawer"
+              className={`detail-drawer${isDetailExpanded ? " detail-drawer--expanded" : ""}`}
               role="dialog"
               aria-label="Entry detail"
               style={
@@ -1151,7 +1158,17 @@ export default function App() {
                     <dd>{selectedEntry.category ?? "Uncategorized"}</dd>
                   </div>
                   <div className="detail-list__row detail-list__row--message">
-                    <dt>Message</dt>
+                    <dt className="detail-list__label">
+                      <span>Message</span>
+                      <button
+                        type="button"
+                        className={`glass-button${isDetailExpanded ? " glass-button--strong" : ""}`}
+                        aria-pressed={isDetailExpanded}
+                        onClick={() => setIsDetailExpanded((current) => !current)}
+                      >
+                        {isDetailExpanded ? "Compact view" : "Expand message"}
+                      </button>
+                    </dt>
                     <dd className="detail-message">
                       {selectedMessageBlocks.map((block, index) =>
                         block.kind === "xml" ? (

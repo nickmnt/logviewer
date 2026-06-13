@@ -20,7 +20,7 @@
   --border-strong: rgba(214, 226, 242, 0.16);
   --focus-ring: rgba(111, 178, 242, 0.82);
   --row-height: 36px;
-  --log-columns: 4.75rem minmax(12rem, 15rem) 4.8rem minmax(12rem, 17rem) minmax(28rem, 1fr) 4.5rem;
+  --log-columns: 4.5rem 13.5rem 4.2rem minmax(9rem, 0.9fr) minmax(30rem, 3.4fr) 4.25rem;
   font-family: Inter, "Avenir Next", "Segoe UI", sans-serif;
   background: var(--terminal-ink);
   color: var(--text-main);
@@ -769,6 +769,19 @@ mark {
   box-shadow:
     inset 3px 0 0 var(--detail-accent),
     -22px 0 40px rgba(0, 0, 0, 0.3);
+  transition:
+    top 180ms ease,
+    width 180ms ease,
+    max-height 180ms ease,
+    box-shadow 180ms ease;
+}
+
+.detail-drawer--expanded {
+  top: 0.7rem;
+  width: min(52rem, calc(100% - 0.85rem));
+  box-shadow:
+    inset 3px 0 0 var(--detail-accent),
+    -26px 0 48px rgba(0, 0, 0, 0.34);
 }
 
 .detail-drawer__header {
@@ -834,6 +847,17 @@ mark {
   margin: 0;
 }
 
+.detail-list__label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.detail-list__label span {
+  min-width: 0;
+}
+
 .detail-list__row dd {
   color: var(--text-main);
   overflow-wrap: anywhere;
@@ -855,6 +879,7 @@ mark {
 .detail-message {
   display: grid;
   gap: 0.55rem;
+  min-width: 0;
 }
 
 .detail-message__line {
@@ -932,7 +957,7 @@ mark {
 
 @media (max-width: 900px) {
   :root {
-    --log-columns: 4.5rem minmax(10rem, 12rem) 4.6rem minmax(10rem, 14rem) minmax(16rem, 1fr) 4.2rem;
+    --log-columns: 4.2rem 12.75rem 4rem minmax(8rem, 0.75fr) minmax(22rem, 2.6fr) 4rem;
   }
 
   .workbench {
@@ -971,11 +996,17 @@ mark {
       inset 0 3px 0 var(--detail-accent),
       0 -18px 40px rgba(0, 0, 0, 0.28);
   }
+
+  .detail-drawer--expanded {
+    top: 4.25rem;
+    bottom: 2.2rem;
+    max-height: none;
+  }
 }
 
 @media (max-width: 720px) {
   :root {
-    --log-columns: 4rem minmax(8.8rem, 9.7rem) minmax(3.8rem, 4.4rem) minmax(0, 1fr) 4rem;
+    --log-columns: 4rem 11.25rem 3.9rem minmax(18rem, 1fr) 4rem;
   }
 
   .activity-rail {
@@ -1042,5 +1073,10 @@ mark {
 
   .detail-drawer__content {
     padding: 0.75rem 0.85rem 0.85rem;
+  }
+
+  .detail-list__label {
+    align-items: flex-start;
+    flex-direction: column;
   }
 }

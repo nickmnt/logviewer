@@ -44,10 +44,43 @@ describe("App", () => {
     expect(within(dialog).getByText("Level")).toBeInTheDocument();
     expect(within(dialog).getByText("Category")).toBeInTheDocument();
     expect(within(dialog).getByText("Message")).toBeInTheDocument();
+    expect(within(dialog).getByRole("button", { name: "Expand message" })).toBeInTheDocument();
     expect(
       within(dialog).getByText(/TRACE|DEBUG|INFO|WARN|ERROR|FATAL|RAW/),
     ).toBeInTheDocument();
     expect(within(dialog).queryByRole("button", { name: /Copy/i })).not.toBeInTheDocument();
+  }, 10000);
+
+  it("lets the message area expand on demand and resets after closing detail", async () => {
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    await user.click(screen.getByRole("button", { name: "Open bundled sample" }));
+    await screen.findByText("480 of 480 lines");
+
+    await user.click(screen.getByRole("button", { name: "Select log entry 25" }));
+    fireEvent.keyDown(window, { key: "Enter" });
+
+    const dialog = await screen.findByRole("dialog", { name: "Entry detail" });
+    const expandButton = within(dialog).getByRole("button", { name: "Expand message" });
+
+    await user.click(expandButton);
+
+    expect(dialog).toHaveClass("detail-drawer--expanded");
+    expect(within(dialog).getByRole("button", { name: "Compact view" })).toHaveAttribute("aria-pressed", "true");
+
+    await user.click(within(dialog).getByRole("button", { name: "Close" }));
+
+    await waitFor(() => {
+      expect(screen.queryByRole("dialog", { name: "Entry detail" })).not.toBeInTheDocument();
+    });
+
+    fireEvent.keyDown(window, { key: "Enter" });
+
+    const reopenedDialog = await screen.findByRole("dialog", { name: "Entry detail" });
+    expect(reopenedDialog).not.toHaveClass("detail-drawer--expanded");
+    expect(within(reopenedDialog).getByRole("button", { name: "Expand message" })).toHaveAttribute("aria-pressed", "false");
   }, 10000);
 
   it("keeps focus on the viewport after clicking a row so arrow navigation does not leave a stale row focus ring", async () => {
