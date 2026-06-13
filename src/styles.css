@@ -852,6 +852,32 @@ mark {
   white-space: pre-wrap;
 }
 
+.detail-message {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.detail-message__line {
+  display: block;
+}
+
+.detail-xml {
+  margin: 0;
+  padding: 0.7rem 0.75rem;
+  border: 1px solid rgba(214, 226, 242, 0.08);
+  border-radius: 0.35rem;
+  background: rgba(6, 10, 14, 0.56);
+  color: var(--text-main);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font: inherit;
+  line-height: 1.55;
+}
+
+.detail-xml__bracket {
+  color: var(--accent-strong);
+}
+
 .empty-state {
   position: absolute;
   inset: 2.25rem 0 1.45rem;

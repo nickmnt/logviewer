@@ -1,8 +1,10 @@
 import {
   CSSProperties,
   ChangeEvent,
+  Fragment,
   KeyboardEvent as ReactKeyboardEvent,
   MouseEvent as ReactMouseEvent,
+  ReactNode,
   startTransition,
   useDeferredValue,
   useEffect,
@@ -13,6 +15,7 @@ import {
 import sampleLogText from "../examples/nlog.log?raw";
 import { LOG_ROW_HEIGHT, VirtualLogList } from "./components/VirtualLogList";
 import { formatDetailTime, LEVEL_COLORS, parseLogText } from "./lib/logs";
+import { splitMessageBlocks } from "./lib/messageDetail";
 import { CurrentFile, LOG_LEVELS, LogEntry, LogLevel, VisibleLevel } from "./types";
 
 const FILTER_LEVELS = [...LOG_LEVELS, "RAW"] as const;
@@ -106,6 +109,26 @@ async function copyTextToClipboard(text: string): Promise<void> {
   }
 }
 
+function renderXmlBlock(xml: string): ReactNode[] {
+  return xml.split("\n").map((line, lineIndex) => {
+    const tokens = line.split(/(<\/|<|\/>|>)/g).filter((token) => token.length > 0);
+
+    return (
+      <Fragment key={`xml-line-${lineIndex}`}>
+        {tokens.map((token, tokenIndex) => (
+          <span
+            key={`xml-token-${lineIndex}-${tokenIndex}`}
+            className={token === "<" || token === "</" || token === ">" || token === "/>" ? "detail-xml__bracket" : undefined}
+          >
+            {token}
+          </span>
+        ))}
+        {lineIndex < xml.split("\n").length - 1 ? "\n" : null}
+      </Fragment>
+    );
+  });
+}
+
 export default function App() {
   const [currentFile, setCurrentFile] = useState<CurrentFile | null>(null);
   const [entries, setEntries] = useState<LogEntry[]>([]);
@@ -142,6 +165,9 @@ export default function App() {
   }, [filteredEntries]);
   const selectedIndex = selectionId === null ? -1 : (selectedIndexById.get(selectionId) ?? -1);
   const selectedEntry = selectedIndex === -1 ? null : filteredEntries[selectedIndex] ?? null;
+  const selectedMessageBlocks = useMemo(() => {
+    return selectedEntry ? splitMessageBlocks(selectedEntry.message) : [];
+  }, [selectedEntry]);
   const isAllLevelsActive = activeLevels.length === FILTER_LEVELS.length;
   const hasLoadedEntries = entries.length > 0;
   const resultLabel = hasLoadedEntries
@@ -1126,7 +1152,15 @@ export default function App() {
                   </div>
                   <div className="detail-list__row detail-list__row--message">
                     <dt>Message</dt>
-                    <dd>{selectedEntry.message}</dd>
+                    <dd className="detail-message">
+                      {selectedMessageBlocks.map((block, index) =>
+                        block.kind === "xml" ? (
+                          <pre className="detail-xml" key={`${block.kind}-${index}`}>{renderXmlBlock(block.content)}</pre>
+                        ) : (
+                          <span className="detail-message__line" key={`${block.kind}-${index}`}>{block.content}</span>
+                        ),
+                      )}
+                    </dd>
                   </div>
                 </dl>
               </div>

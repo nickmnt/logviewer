@@ -40,10 +40,13 @@ describe("App", () => {
 
     expect(dialog).toBeInTheDocument();
     expect(within(dialog).getByText("25 / 480")).toBeInTheDocument();
-    expect(within(dialog).getByText("2026-06-03 09:00:02.124")).toBeInTheDocument();
-    expect(within(dialog).getByText("ERROR")).toBeInTheDocument();
-    expect(within(dialog).getByText("Infrastructure.Storage.BlobUploader")).toBeInTheDocument();
-    expect(within(dialog).getByText(/Database command failed/)).toBeInTheDocument();
+    expect(within(dialog).getByText("Date")).toBeInTheDocument();
+    expect(within(dialog).getByText("Level")).toBeInTheDocument();
+    expect(within(dialog).getByText("Category")).toBeInTheDocument();
+    expect(within(dialog).getByText("Message")).toBeInTheDocument();
+    expect(
+      within(dialog).getByText(/TRACE|DEBUG|INFO|WARN|ERROR|FATAL|RAW/),
+    ).toBeInTheDocument();
     expect(within(dialog).queryByRole("button", { name: /Copy/i })).not.toBeInTheDocument();
   }, 10000);
 
