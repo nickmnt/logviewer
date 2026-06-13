@@ -711,6 +711,16 @@ export default function App() {
         return;
       }
 
+      if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
+        event.preventDefault();
+        const scrollDirection = event.key === "ArrowRight" ? 1 : -1;
+        const viewport = scrollViewportRef.current;
+        if (viewport) {
+          viewport.scrollLeft += scrollDirection * 320;
+        }
+        return;
+      }
+
       if (event.key === "ArrowDown" || event.key.toLowerCase() === "j") {
         event.preventDefault();
         moveSelection(1);

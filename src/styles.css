@@ -20,7 +20,8 @@
   --border-strong: rgba(214, 226, 242, 0.16);
   --focus-ring: rgba(111, 178, 242, 0.82);
   --row-height: 36px;
-  --log-columns: 4.5rem 13.5rem 4.2rem minmax(9rem, 0.9fr) minmax(34rem, 4.2fr);
+  --log-columns: 4.5rem 13.5rem 4.2rem var(--log-category-column, 24ch) var(--log-message-column, 120ch);
+  --log-table-width: 208ch;
   font-family: Inter, "Avenir Next", "Segoe UI", sans-serif;
   background: var(--terminal-ink);
   color: var(--text-main);
@@ -425,10 +426,14 @@ mark {
   background: rgba(155, 167, 182, 0.32);
 }
 
+.log-table {
+  width: var(--log-table-width);
+  min-width: 100%;
+}
+
 .log-table-head,
 .log-row {
   width: 100%;
-  min-width: 58rem;
   display: grid;
   grid-template-columns: var(--log-columns);
   align-items: center;
@@ -504,11 +509,16 @@ mark {
 .log-row__line,
 .log-row__time,
 .log-row__level,
-.log-row__category,
-.log-row__message {
+.log-row__category {
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
+  font-size: 0.81rem;
+}
+
+.log-row__message {
+  overflow: visible;
+  white-space: nowrap;
   font-size: 0.81rem;
 }
 
@@ -526,7 +536,6 @@ mark {
 }
 
 .log-row__message {
-  min-width: 0;
   color: var(--text-main);
 }
 
@@ -929,7 +938,8 @@ mark {
 
 @media (max-width: 900px) {
   :root {
-    --log-columns: 4.2rem 12.75rem 4rem minmax(8rem, 0.75fr) minmax(26rem, 3.2fr);
+    --log-columns: 4.2rem 12.75rem 4rem var(--log-category-column, 22ch) var(--log-message-column, 100ch);
+    --log-table-width: 186ch;
   }
 
   .workbench {
@@ -978,7 +988,8 @@ mark {
 
 @media (max-width: 720px) {
   :root {
-    --log-columns: 4rem 11.25rem 3.9rem minmax(22rem, 1.4fr);
+    --log-columns: 4rem 11.25rem 3.9rem var(--log-message-column, 100ch);
+    --log-table-width: 164ch;
   }
 
   .activity-rail {
@@ -993,7 +1004,7 @@ mark {
   .log-row {
     grid-template-columns: var(--log-columns);
     gap: 0.55rem;
-    min-width: 42rem;
+    min-width: 100%;
     padding: 0 0.65rem;
   }
 
