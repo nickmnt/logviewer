@@ -3,15 +3,17 @@ import { MutableRefObject, ReactNode, useEffect, useRef, useState } from "react"
 import { LEVEL_COLORS } from "../lib/logs";
 import { LogEntry } from "../types";
 
-const ROW_HEIGHT = 44;
-const OVERSCAN = 14;
+export const LOG_ROW_HEIGHT = 36;
+const OVERSCAN = 18;
 
 interface VirtualLogListProps {
+  copiedEntryId: number | null;
   entries: LogEntry[];
   query: string;
   selectedIndex: number;
   selectionId: number | null;
   viewportRef: MutableRefObject<HTMLDivElement | null>;
+  onCopyEntry: (entry: LogEntry) => void;
   onOpenDetail: () => void;
   onSelectEntry: (entryId: number) => void;
 }
@@ -36,11 +38,13 @@ function renderHighlightedText(text: string, query: string): ReactNode {
 }
 
 export function VirtualLogList({
+  copiedEntryId,
   entries,
   query,
   selectedIndex,
   selectionId,
   viewportRef,
+  onCopyEntry,
   onOpenDetail,
   onSelectEntry,
 }: VirtualLogListProps) {
@@ -50,13 +54,13 @@ export function VirtualLogList({
   const scrollFrameRef = useRef<number | null>(null);
   const pendingWindowStartRef = useRef(0);
 
-  const totalHeight = entries.length * ROW_HEIGHT;
-  const visibleRowCount = viewportHeight > 0 ? Math.ceil(viewportHeight / ROW_HEIGHT) + OVERSCAN * 2 : entries.length;
+  const totalHeight = entries.length * LOG_ROW_HEIGHT;
+  const visibleRowCount = viewportHeight > 0 ? Math.ceil(viewportHeight / LOG_ROW_HEIGHT) + OVERSCAN * 2 : entries.length;
   const startIndex = Math.min(windowStartIndex, Math.max(0, entries.length - visibleRowCount));
   const endIndex = Math.min(entries.length, startIndex + visibleRowCount);
   const visibleEntries = entries.slice(startIndex, endIndex);
-  const topSpacerHeight = startIndex * ROW_HEIGHT;
-  const bottomSpacerHeight = Math.max(0, totalHeight - topSpacerHeight - visibleEntries.length * ROW_HEIGHT);
+  const topSpacerHeight = startIndex * LOG_ROW_HEIGHT;
+  const bottomSpacerHeight = Math.max(0, totalHeight - topSpacerHeight - visibleEntries.length * LOG_ROW_HEIGHT);
 
   useEffect(() => {
     return () => {
@@ -93,8 +97,8 @@ export function VirtualLogList({
       return;
     }
 
-    const itemTop = selectedIndex * ROW_HEIGHT;
-    const itemBottom = itemTop + ROW_HEIGHT;
+    const itemTop = selectedIndex * LOG_ROW_HEIGHT;
+    const itemBottom = itemTop + LOG_ROW_HEIGHT;
 
     if (itemTop < viewport.scrollTop) {
       viewport.scrollTop = itemTop;
@@ -112,7 +116,7 @@ export function VirtualLogList({
       return;
     }
 
-    const nextWindowStartIndex = Math.max(0, Math.floor(viewport.scrollTop / ROW_HEIGHT) - OVERSCAN);
+    const nextWindowStartIndex = Math.max(0, Math.floor(viewport.scrollTop / LOG_ROW_HEIGHT) - OVERSCAN);
     pendingWindowStartRef.current = nextWindowStartIndex;
     setWindowStartIndex(nextWindowStartIndex);
   }, [entries, viewportRef]);
@@ -124,7 +128,7 @@ export function VirtualLogList({
       }}
       className="log-viewport"
       onScroll={(event) => {
-        pendingWindowStartRef.current = Math.max(0, Math.floor(event.currentTarget.scrollTop / ROW_HEIGHT) - OVERSCAN);
+        pendingWindowStartRef.current = Math.max(0, Math.floor(event.currentTarget.scrollTop / LOG_ROW_HEIGHT) - OVERSCAN);
         if (scrollFrameRef.current !== null) {
           return;
         }
@@ -141,26 +145,36 @@ export function VirtualLogList({
       tabIndex={0}
       aria-label="Log entries"
     >
+      <div className="log-table-head" aria-hidden="true">
+        <span className="log-head__cell log-head__cell--line">Ln</span>
+        <span className="log-head__cell">Time</span>
+        <span className="log-head__cell">Lvl</span>
+        <span className="log-head__cell log-head__cell--category">Category</span>
+        <span className="log-head__cell">Message</span>
+        <span className="log-head__cell log-head__cell--action">Copy</span>
+      </div>
       <div style={{ height: topSpacerHeight }} aria-hidden="true" />
       {visibleEntries.map((entry, rowOffset) => {
         const absoluteIndex = startIndex + rowOffset;
         const isSelected = entry.id === selectionId;
+        const rowLabel = `Select log entry ${absoluteIndex + 1}`;
 
         return (
-          <button
+          <div
             key={entry.id}
             className={`log-row log-row--${entry.visibleLevel.toLowerCase()}${absoluteIndex % 2 === 1 ? " log-row--striped" : ""}${isSelected ? " log-row--selected" : ""}`}
-            style={{ height: ROW_HEIGHT }}
-            aria-label={`Select log entry ${absoluteIndex + 1}`}
+            style={{ height: LOG_ROW_HEIGHT }}
+            role="button"
+            aria-label={rowLabel}
             aria-pressed={isSelected}
             tabIndex={-1}
-            onMouseDown={(event) => event.preventDefault()}
             onClick={() => {
               onSelectEntry(entry.id);
               viewportRef.current?.focus({ preventScroll: true });
             }}
             onDoubleClick={onOpenDetail}
           >
+            <span className="log-row__line">{absoluteIndex + 1}</span>
             <span className="log-row__time">{renderHighlightedText(entry.timestampText || "Unparsed", query)}</span>
             <span
               className="log-row__level"
@@ -168,11 +182,22 @@ export function VirtualLogList({
             >
               {renderHighlightedText(entry.visibleLevel, query)}
             </span>
-            <span className="log-row__message">
-              {entry.category ? <span className="log-row__category">{renderHighlightedText(entry.category, query)}</span> : null}
-              <span className="log-row__body">{renderHighlightedText(entry.message, query)}</span>
+            <span className="log-row__category">{renderHighlightedText(entry.category ?? "Uncategorized", query)}</span>
+            <span className="log-row__message" title={entry.raw}>
+              {renderHighlightedText(entry.message, query)}
             </span>
-          </button>
+            <button
+              type="button"
+              className={`log-row__copy${copiedEntryId === entry.id ? " log-row__copy--done" : ""}`}
+              aria-label={`Copy log entry ${absoluteIndex + 1}`}
+              onClick={(event) => {
+                event.stopPropagation();
+                onCopyEntry(entry);
+              }}
+            >
+              {copiedEntryId === entry.id ? "Done" : "Copy"}
+            </button>
+          </div>
         );
       })}
       <div style={{ height: bottomSpacerHeight }} aria-hidden="true" />

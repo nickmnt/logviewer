@@ -76,9 +76,9 @@ CATEGORIES = [
 ]
 
 
-def _format_line(timestamp: datetime, level: str, category: str, message: str) -> str:
+def _format_line(timestamp: datetime, level: str, code: int, category: str, message: str) -> str:
     fraction = f"{timestamp.microsecond:06d}"[:4]
-    return f"{timestamp:%Y-%m-%d %H:%M:%S}.{fraction}|{level}|{category}|{message}"
+    return f"{timestamp:%Y-%m-%d %H:%M:%S}.{fraction}|{level}|{code:02d}|{category}|{message}"
 
 
 def build_example_lines(line_count: int) -> list[str]:
@@ -89,11 +89,12 @@ def build_example_lines(line_count: int) -> list[str]:
     # Emit at least one line per level and category early so filter demos always have coverage.
     for index, category in enumerate(CATEGORIES):
         level = LEVELS[index % len(LEVELS)]
+        code = (index + 11) % 100
         message = (
             f"{BASE_MESSAGES[level][index % len(BASE_MESSAGES[level])]} | "
             f"seeded startup event | request_id=REQ-{index + 1:04d}"
         )
-        lines.append(_format_line(timestamp, level, category, message))
+        lines.append(_format_line(timestamp, level, code, category, message))
         timestamp += timedelta(milliseconds=75)
 
     while len(lines) < line_count:
@@ -103,6 +104,7 @@ def build_example_lines(line_count: int) -> list[str]:
             k=1,
         )[0]
         category = randomizer.choice(CATEGORIES)
+        code = randomizer.randint(0, 99)
         template = randomizer.choice(BASE_MESSAGES[level])
         context = " ".join(
             part.format(
@@ -125,7 +127,7 @@ def build_example_lines(line_count: int) -> list[str]:
             )
             context = f"{context} {detail}"
         message = f"{template} | {context}"
-        lines.append(_format_line(timestamp, level, category, message))
+        lines.append(_format_line(timestamp, level, code, category, message))
         timestamp += timedelta(milliseconds=randomizer.randint(15, 220))
 
     return lines
@@ -137,7 +139,7 @@ def generate_example_file(output_path: Path, line_count: int) -> None:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Generate a deterministic sample NLog file.")
+    parser = argparse.ArgumentParser(description="Generate a deterministic sample log file.")
     parser.add_argument(
         "--output",
         type=Path,

@@ -9,7 +9,7 @@ import {
   useState,
 } from "react";
 import sampleLogText from "../examples/nlog.log?raw";
-import { VirtualLogList } from "./components/VirtualLogList";
+import { LOG_ROW_HEIGHT, VirtualLogList } from "./components/VirtualLogList";
 import { formatDetailTime, LEVEL_COLORS, parseLogText } from "./lib/logs";
 import { CurrentFile, LOG_LEVELS, LogEntry, LogLevel, VisibleLevel } from "./types";
 
@@ -24,6 +24,7 @@ function buildDetailText(entry: LogEntry | null, selectedIndex: number, totalEnt
   }
 
   return [
+    `Source line ${entry.id + 1}`,
     `Selected entry ${selectedIndex + 1}/${totalEntries}`,
     `Time: ${entry.timestampMs ? formatDetailTime(entry.timestampMs) : "Unparsed"}`,
     `Level: ${entry.level ?? "RAW"}`,
@@ -73,11 +74,40 @@ function isFilePickerCancellation(error: unknown): boolean {
   return false;
 }
 
+function hasDocumentSelection(): boolean {
+  return (window.getSelection()?.toString().trim().length ?? 0) > 0;
+}
+
+async function copyTextToClipboard(text: string): Promise<void> {
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(text);
+    return;
+  }
+
+  const textarea = document.createElement("textarea");
+  textarea.value = text;
+  textarea.setAttribute("readonly", "true");
+  textarea.style.position = "fixed";
+  textarea.style.opacity = "0";
+  document.body.append(textarea);
+  textarea.select();
+
+  const copied = document.execCommand("copy");
+  textarea.remove();
+
+  if (!copied) {
+    throw new Error("Clipboard write failed.");
+  }
+}
+
 export default function App() {
   const [currentFile, setCurrentFile] = useState<CurrentFile | null>(null);
   const [entries, setEntries] = useState<LogEntry[]>([]);
+  const [fileText, setFileText] = useState("");
   const [selectionId, setSelectionId] = useState<number | null>(null);
+  const [copiedEntryId, setCopiedEntryId] = useState<number | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [noticeMessage, setNoticeMessage] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState("Open a log file or the bundled sample.");
   const [query, setQuery] = useState("");
   const [commandQuery, setCommandQuery] = useState("");
@@ -92,6 +122,7 @@ export default function App() {
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const commandInputRef = useRef<HTMLInputElement | null>(null);
   const chromeTimerRef = useRef<number | null>(null);
+  const noticeTimerRef = useRef<number | null>(null);
 
   const activeLevelSet = useMemo(() => new Set(activeLevels), [activeLevels]);
   const filteredEntries = useMemo(() => {
@@ -114,6 +145,24 @@ export default function App() {
       window.clearTimeout(chromeTimerRef.current);
       chromeTimerRef.current = null;
     }
+  }
+
+  function clearNoticeTimer(): void {
+    if (noticeTimerRef.current !== null) {
+      window.clearTimeout(noticeTimerRef.current);
+      noticeTimerRef.current = null;
+    }
+  }
+
+  function announceNotice(message: string): void {
+    setErrorMessage(null);
+    setNoticeMessage(message);
+    clearNoticeTimer();
+    noticeTimerRef.current = window.setTimeout(() => {
+      setNoticeMessage(null);
+      setCopiedEntryId(null);
+      noticeTimerRef.current = null;
+    }, 2200);
   }
 
   function scheduleChromeHide(): void {
@@ -155,9 +204,12 @@ export default function App() {
   }
 
   function resetViewState(): void {
+    clearNoticeTimer();
     setQuery("");
     setCommandQuery("");
     setActiveLevels([...FILTER_LEVELS]);
+    setCopiedEntryId(null);
+    setNoticeMessage(null);
     closeTransientUi();
     scrollViewportRef.current?.scrollTo({ top: 0, behavior: "auto" });
   }
@@ -168,6 +220,7 @@ export default function App() {
     startTransition(() => {
       setCurrentFile(file);
       setEntries(parsedEntries);
+      setFileText(text);
       setSelectionId(parsedEntries[0]?.id ?? null);
       setErrorMessage(null);
       setStatusMessage(nextStatus);
@@ -276,6 +329,62 @@ export default function App() {
     setSelectionId(filteredEntries[nextIndex]?.id ?? null);
   }
 
+  function jumpSelection(nextIndex: number): void {
+    if (filteredEntries.length === 0) {
+      return;
+    }
+
+    const clampedIndex = Math.min(filteredEntries.length - 1, Math.max(0, nextIndex));
+    setSelectionId(filteredEntries[clampedIndex]?.id ?? null);
+  }
+
+  function getPageJump(): number {
+    const viewportHeight = scrollViewportRef.current?.clientHeight ?? LOG_ROW_HEIGHT * 12;
+    return Math.max(1, Math.floor(viewportHeight / LOG_ROW_HEIGHT) - 1);
+  }
+
+  async function copySelectedLine(): Promise<void> {
+    if (!selectedEntry) {
+      return;
+    }
+
+    await copyEntry(selectedEntry);
+  }
+
+  async function copySelectedDetail(): Promise<void> {
+    if (!selectedEntry) {
+      return;
+    }
+
+    await copyTextToClipboard(buildDetailText(selectedEntry, selectedIndex, filteredEntries.length));
+    setCopiedEntryId(selectedEntry.id);
+    announceNotice(`Copied detail for line ${selectedEntry.id + 1}.`);
+  }
+
+  async function copyFilteredRows(): Promise<void> {
+    if (filteredEntries.length === 0) {
+      return;
+    }
+
+    await copyTextToClipboard(filteredEntries.map((entry) => entry.raw).join("\n"));
+    announceNotice(`Copied ${formatCount(filteredEntries.length)} visible lines.`);
+  }
+
+  async function copyCurrentFile(): Promise<void> {
+    if (!fileText) {
+      return;
+    }
+
+    await copyTextToClipboard(fileText);
+    announceNotice(`Copied ${currentFile?.label ?? "current file"}.`);
+  }
+
+  async function copyEntry(entry: LogEntry): Promise<void> {
+    await copyTextToClipboard(entry.raw);
+    setCopiedEntryId(entry.id);
+    announceNotice(`Copied line ${entry.id + 1}.`);
+  }
+
   function toggleLevel(level: VisibleLevel): void {
     setActiveLevels((currentLevels) => {
       if (currentLevels.includes(level)) {
@@ -302,6 +411,14 @@ export default function App() {
   }, [filteredEntries, selectedIndex, selectionId]);
 
   useEffect(() => {
+    if (!hasLoadedEntries || activeOverlay || isDetailOpen) {
+      return;
+    }
+
+    restoreViewportFocus();
+  }, [activeOverlay, hasLoadedEntries, isDetailOpen]);
+
+  useEffect(() => {
     revealChrome();
 
     const onActivity = (): void => revealChrome();
@@ -315,6 +432,7 @@ export default function App() {
       window.removeEventListener("touchstart", onActivity);
       window.removeEventListener("focusin", onActivity);
       clearChromeTimer();
+      clearNoticeTimer();
     };
   }, [activeOverlay, isDetailOpen]);
 
@@ -349,6 +467,14 @@ export default function App() {
         revealChrome(true);
         setCommandQuery("");
         setActiveOverlay("palette");
+        return;
+      }
+
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "c" && !targetIsTyping && !hasDocumentSelection()) {
+        event.preventDefault();
+        void copySelectedLine().catch((error: unknown) => {
+          setErrorMessage(error instanceof Error ? error.message : "Unable to copy the selected log line.");
+        });
         return;
       }
 
@@ -409,6 +535,30 @@ export default function App() {
       if (event.key === "ArrowUp" || event.key.toLowerCase() === "k") {
         event.preventDefault();
         moveSelection(-1);
+        return;
+      }
+
+      if (event.key === "PageDown") {
+        event.preventDefault();
+        moveSelection(getPageJump());
+        return;
+      }
+
+      if (event.key === "PageUp") {
+        event.preventDefault();
+        moveSelection(-getPageJump());
+        return;
+      }
+
+      if (event.key === "Home") {
+        event.preventDefault();
+        jumpSelection(0);
+        return;
+      }
+
+      if (event.key === "End") {
+        event.preventDefault();
+        jumpSelection(filteredEntries.length - 1);
       }
     };
 
@@ -416,7 +566,7 @@ export default function App() {
     return () => {
       window.removeEventListener("keydown", onKeyDown);
     };
-  }, [activeOverlay, isDetailOpen, query, selectedEntry, selectedIndex, filteredEntries]);
+  }, [activeOverlay, filteredEntries.length, isDetailOpen, query, selectedEntry, selectedIndex]);
 
   const paletteItems = [
     {
@@ -483,6 +633,54 @@ export default function App() {
         setActiveOverlay(null);
       },
     },
+    {
+      id: "copy-line",
+      label: "Copy selected line",
+      hint: "Ctrl/Cmd+C",
+      disabled: !selectedEntry,
+      run: () => {
+        setActiveOverlay(null);
+        void copySelectedLine().catch((error: unknown) => {
+          setErrorMessage(error instanceof Error ? error.message : "Unable to copy the selected log line.");
+        });
+      },
+    },
+    {
+      id: "copy-detail",
+      label: "Copy selected detail",
+      hint: "",
+      disabled: !selectedEntry,
+      run: () => {
+        setActiveOverlay(null);
+        void copySelectedDetail().catch((error: unknown) => {
+          setErrorMessage(error instanceof Error ? error.message : "Unable to copy the selected log detail.");
+        });
+      },
+    },
+    {
+      id: "copy-visible",
+      label: "Copy visible lines",
+      hint: "",
+      disabled: filteredEntries.length === 0,
+      run: () => {
+        setActiveOverlay(null);
+        void copyFilteredRows().catch((error: unknown) => {
+          setErrorMessage(error instanceof Error ? error.message : "Unable to copy the visible log lines.");
+        });
+      },
+    },
+    {
+      id: "copy-file",
+      label: "Copy current file",
+      hint: "",
+      disabled: !fileText,
+      run: () => {
+        setActiveOverlay(null);
+        void copyCurrentFile().catch((error: unknown) => {
+          setErrorMessage(error instanceof Error ? error.message : "Unable to copy the current file.");
+        });
+      },
+    },
   ].filter((item) => item.label.toLowerCase().includes(commandQuery.trim().toLowerCase()));
 
   return (
@@ -492,11 +690,18 @@ export default function App() {
       <main className="viewer-stage" aria-label="Log viewer">
         {hasLoadedEntries ? (
           <VirtualLogList
+            copiedEntryId={copiedEntryId}
             entries={filteredEntries}
             query={deferredQuery}
             selectedIndex={selectedIndex}
             selectionId={selectionId}
             viewportRef={scrollViewportRef}
+            onCopyEntry={(entry) => {
+              void copyEntry(entry)
+                .catch((error: unknown) => {
+                  setErrorMessage(error instanceof Error ? error.message : "Unable to copy the selected log line.");
+                });
+            }}
             onOpenDetail={() => setIsDetailOpen(true)}
             onSelectEntry={(entryId) => {
               setSelectionId(entryId);
@@ -516,7 +721,7 @@ export default function App() {
                 Open bundled sample
               </button>
             </div>
-            <p className="empty-state__hint">Use `Ctrl/Cmd+O` to open, `/` to search, `F` to filter, `Enter` for detail.</p>
+            <p className="empty-state__hint">Use `Ctrl/Cmd+O` open, `/` search, `F` filter, `Ctrl/Cmd+C` copy, `PgUp/PgDn` move fast.</p>
           </section>
         )}
 
@@ -540,6 +745,17 @@ export default function App() {
               </button>
               <button
                 className="glass-button"
+                disabled={!selectedEntry}
+                onClick={() => {
+                  void copySelectedLine().catch((error: unknown) => {
+                    setErrorMessage(error instanceof Error ? error.message : "Unable to copy the selected log line.");
+                  });
+                }}
+              >
+                Copy line <kbd>Ctrl/Cmd+C</kbd>
+              </button>
+              <button
+                className="glass-button"
                 onClick={() => {
                   setCommandQuery("");
                   setActiveOverlay("palette");
@@ -551,11 +767,8 @@ export default function App() {
           </div>
         </div>
 
-        {errorMessage ? (
-          <div className="floating-banner" role="alert">
-            {errorMessage}
-          </div>
-        ) : null}
+        {errorMessage ? <div className="floating-banner" role="alert">{errorMessage}</div> : null}
+        {!errorMessage && noticeMessage ? <div className="floating-banner floating-banner--notice" role="status">{noticeMessage}</div> : null}
 
         <div className="status-stack">
           <div className="glass-chip status-pill">
@@ -571,6 +784,7 @@ export default function App() {
               </strong>
               <span>{selectedEntry.level ?? "RAW"}</span>
               <span>{selectedEntry.category ?? "Uncategorized"}</span>
+              <span>Ln {selectedEntry.id + 1}</span>
             </button>
           ) : null}
         </div>
@@ -667,9 +881,21 @@ export default function App() {
                     {selectedIndex + 1} of {filteredEntries.length}
                   </strong>
                 </div>
-                <button className="glass-button" onClick={() => setIsDetailOpen(false)}>
-                  Close
-                </button>
+                <div className="detail-drawer__actions">
+                  <button
+                    className="glass-button"
+                    onClick={() => {
+                      void copySelectedDetail().catch((error: unknown) => {
+                        setErrorMessage(error instanceof Error ? error.message : "Unable to copy the selected log detail.");
+                      });
+                    }}
+                  >
+                    Copy detail
+                  </button>
+                  <button className="glass-button" onClick={() => setIsDetailOpen(false)}>
+                    Close
+                  </button>
+                </div>
               </div>
               <pre>{buildDetailText(selectedEntry, selectedIndex, filteredEntries.length)}</pre>
             </aside>

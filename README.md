@@ -1,6 +1,6 @@
 # Logviewer
 
-Minimal React log viewer for NLog-style files.
+Minimal React log viewer for pipe-delimited log files.
 
 ## Run
 
@@ -20,17 +20,19 @@ Then open [http://127.0.0.1:4173](http://127.0.0.1:4173) if Vite does not open i
 
 ## Format
 
-The viewer parses standard NLog-style rows:
+The viewer parses rows in either of these shapes:
 
 ```text
 timestamp|LEVEL|Category|Message
+timestamp|LEVEL|NN|Category|Message
 ```
 
-Rows that do not match that format stay visible as raw entries.
+When the optional `NN` field is present, the app ignores it for display and search.
+Rows that do not match either format stay visible as raw entries.
 
 ## Example Generator
 
-Generate a reproducible NLog-style sample file with:
+Generate a reproducible bundled sample file with:
 
 ```bash
 python3 examples/generate_nlog_example.py

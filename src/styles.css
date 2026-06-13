@@ -15,7 +15,8 @@
   --accent-strong: #c3ecff;
   --shadow-glass: 0 16px 48px rgba(0, 0, 0, 0.34);
   --shadow-edge: inset 0 1px 0 rgba(255, 255, 255, 0.045);
-  --row-height: 44px;
+  --row-height: 36px;
+  --log-columns: 5.5rem minmax(12rem, 15rem) 5.5rem minmax(12rem, 18rem) minmax(28rem, 1fr) 4.75rem;
   font-family: "IBM Plex Sans", "Avenir Next", "Segoe UI", sans-serif;
   background:
     radial-gradient(circle at top, rgba(166, 228, 255, 0.1), transparent 24%),
@@ -52,6 +53,10 @@ button {
   border: 0;
   color: inherit;
   cursor: pointer;
+}
+
+button:disabled {
+  cursor: default;
 }
 
 button:focus-visible,
@@ -100,6 +105,7 @@ mark {
   height: 100%;
   overflow: hidden;
   background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.018), rgba(255, 255, 255, 0)),
     radial-gradient(circle at center, rgba(120, 173, 201, 0.055), transparent 38%),
     linear-gradient(180deg, rgba(11, 23, 30, 0.3), rgba(6, 11, 16, 0.7));
 }
@@ -107,7 +113,8 @@ mark {
 .log-viewport {
   height: 100%;
   overflow: auto;
-  padding: 4.6rem 0 5.5rem;
+  padding: 4.35rem 0 5.5rem;
+  font-family: "IBM Plex Mono", "SFMono-Regular", Consolas, monospace;
   scrollbar-width: thin;
   scrollbar-color: rgba(168, 195, 212, 0.25) transparent;
 }
@@ -121,23 +128,61 @@ mark {
   background: rgba(168, 195, 212, 0.22);
 }
 
+.log-table-head,
 .log-row {
   width: 100%;
   display: grid;
-  grid-template-columns: minmax(13rem, 15.5rem) 6.5ch minmax(0, 1fr);
+  grid-template-columns: var(--log-columns);
   align-items: center;
-  gap: 1rem;
-  padding: 0 1.35rem;
+  gap: 0.9rem;
+  padding: 0 1.2rem;
   text-align: left;
+}
+
+.log-table-head {
+  position: sticky;
+  top: 0;
+  z-index: 4;
+  min-height: 2rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.04);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  background:
+    linear-gradient(180deg, rgba(8, 16, 23, 0.94), rgba(8, 16, 23, 0.86)),
+    rgba(8, 16, 23, 0.88);
+  color: var(--text-faint);
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  backdrop-filter: blur(16px);
+}
+
+.log-head__cell {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.log-head__cell--line,
+.log-row__line {
+  color: var(--text-faint);
+  text-align: right;
+}
+
+.log-head__cell--action {
+  text-align: center;
+}
+
+.log-row {
   background: transparent;
   border-bottom: 1px solid rgba(255, 255, 255, 0.035);
   transition:
     background-color 120ms ease,
     border-color 120ms ease;
+  user-select: text;
 }
 
 .log-row--striped {
-  background: rgba(255, 255, 255, 0.014);
+  background: rgba(255, 255, 255, 0.01);
 }
 
 .log-row:hover {
@@ -146,10 +191,12 @@ mark {
 
 .log-row--selected {
   background:
-    linear-gradient(90deg, rgba(143, 212, 255, 0.13), rgba(143, 212, 255, 0.03)),
+    linear-gradient(90deg, rgba(143, 212, 255, 0.14), rgba(143, 212, 255, 0.03)),
     rgba(255, 255, 255, 0.02);
   border-bottom-color: rgba(143, 212, 255, 0.12);
-  box-shadow: inset 2px 0 0 var(--accent);
+  box-shadow:
+    inset 3px 0 0 var(--accent),
+    inset 0 0 0 1px rgba(143, 212, 255, 0.08);
 }
 
 .log-row--selected:hover {
@@ -158,11 +205,15 @@ mark {
     rgba(255, 255, 255, 0.03);
 }
 
+.log-row__line,
 .log-row__time,
-.log-row__level {
-  font-family: "IBM Plex Mono", "SFMono-Regular", Consolas, monospace;
+.log-row__level,
+.log-row__category,
+.log-row__message {
   font-size: 0.82rem;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .log-row__time {
@@ -170,41 +221,40 @@ mark {
 }
 
 .log-row__level {
-  font-size: 0.78rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 
-.log-row__message {
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  gap: 0.65rem;
+.log-row__category {
+  color: var(--text-faint);
 }
 
-.log-row__category {
-  box-sizing: border-box;
-  flex: 0 0 24ch;
-  width: 24ch;
-  max-width: 24ch;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  padding: 0.16rem 0.48rem;
+.log-row__message {
+  min-width: 0;
+  color: var(--text-main);
+}
+
+.log-row__copy {
+  min-height: 1.65rem;
+  padding: 0 0.55rem;
   border-radius: 999px;
   border: 1px solid rgba(255, 255, 255, 0.08);
   background: rgba(255, 255, 255, 0.02);
-  color: var(--text-faint);
-  font-size: 0.73rem;
+  color: var(--text-muted);
+  font-size: 0.71rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  transition:
+    border-color 120ms ease,
+    background-color 120ms ease,
+    color 120ms ease;
 }
 
-.log-row__body {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.log-row__copy:hover,
+.log-row__copy--done {
+  border-color: rgba(143, 212, 255, 0.22);
+  background: rgba(143, 212, 255, 0.12);
   color: var(--text-main);
-  font-size: 0.92rem;
 }
 
 .chrome-layer {
@@ -294,6 +344,11 @@ mark {
     border-color 140ms ease;
 }
 
+.glass-button:disabled {
+  opacity: 0.45;
+  transform: none;
+}
+
 .glass-button:hover,
 .status-pill--interactive:hover,
 .filter-chip:hover,
@@ -328,6 +383,12 @@ mark {
   border-color: rgba(255, 123, 114, 0.24);
   background: linear-gradient(180deg, rgba(77, 27, 24, 0.88), rgba(35, 14, 14, 0.82));
   color: #ffd3ce;
+}
+
+.floating-banner--notice {
+  border-color: rgba(143, 212, 255, 0.22);
+  background: linear-gradient(180deg, rgba(18, 40, 54, 0.9), rgba(8, 23, 31, 0.86));
+  color: var(--accent-strong);
 }
 
 .status-stack {
@@ -524,6 +585,11 @@ mark {
   padding-bottom: 0.9rem;
 }
 
+.detail-drawer__actions {
+  display: flex;
+  gap: 0.6rem;
+}
+
 .detail-drawer__header p {
   margin: 0 0 0.25rem;
   color: var(--text-faint);
@@ -592,6 +658,10 @@ mark {
 }
 
 @media (max-width: 900px) {
+  :root {
+    --log-columns: 4.5rem minmax(10rem, 12rem) 4.6rem minmax(10rem, 14rem) minmax(16rem, 1fr) 4.4rem;
+  }
+
   .chrome-bar,
   .status-stack {
     left: 0.75rem;
@@ -623,12 +693,18 @@ mark {
 }
 
 @media (max-width: 720px) {
+  :root {
+    --log-columns: 4rem minmax(8.8rem, 9.7rem) minmax(3.8rem, 4.4rem) minmax(0, 1fr) 4rem;
+  }
+
+  .log-table-head,
   .log-row {
-    grid-template-columns: minmax(8.8rem, 9.7rem) minmax(3.8rem, 4.4rem) minmax(0, 1fr);
+    grid-template-columns: var(--log-columns);
     gap: 0.65rem;
     padding: 0 0.85rem;
   }
 
+  .log-head__cell--category,
   .log-row__category {
     display: none;
   }
