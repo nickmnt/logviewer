@@ -134,7 +134,6 @@ export default function App() {
   const [entries, setEntries] = useState<LogEntry[]>([]);
   const [fileText, setFileText] = useState("");
   const [selectionId, setSelectionId] = useState<number | null>(null);
-  const [copiedEntryId, setCopiedEntryId] = useState<number | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [noticeMessage, setNoticeMessage] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState("Open a log file or the bundled sample.");
@@ -210,7 +209,6 @@ export default function App() {
     clearNoticeTimer();
     noticeTimerRef.current = window.setTimeout(() => {
       setNoticeMessage(null);
-      setCopiedEntryId(null);
       noticeTimerRef.current = null;
     }, 2200);
   }
@@ -239,7 +237,6 @@ export default function App() {
     setQuery("");
     setCommandQuery("");
     setActiveLevels([...FILTER_LEVELS]);
-    setCopiedEntryId(null);
     setNoticeMessage(null);
     closeTransientUi();
     scrollViewportRef.current?.scrollTo({ top: 0, behavior: "auto" });
@@ -385,7 +382,6 @@ export default function App() {
     }
 
     await copyTextToClipboard(buildDetailText(selectedEntry, selectedIndex, filteredEntries.length));
-    setCopiedEntryId(selectedEntry.id);
     announceNotice(`Copied detail for line ${selectedEntry.id + 1}.`);
   }
 
@@ -409,7 +405,6 @@ export default function App() {
 
   async function copyEntry(entry: LogEntry): Promise<void> {
     await copyTextToClipboard(entry.raw);
-    setCopiedEntryId(entry.id);
     announceNotice(`Copied line ${entry.id + 1}.`);
   }
 
@@ -970,18 +965,11 @@ export default function App() {
 
             {hasLoadedEntries ? (
               <VirtualLogList
-                copiedEntryId={copiedEntryId}
                 entries={filteredEntries}
                 query={deferredQuery}
                 selectedIndex={selectedIndex}
                 selectionId={selectionId}
                 viewportRef={scrollViewportRef}
-                onCopyEntry={(entry) => {
-                  void copyEntry(entry)
-                    .catch((error: unknown) => {
-                      setErrorMessage(error instanceof Error ? error.message : "Unable to copy the selected log line.");
-                    });
-                }}
                 onOpenDetail={() => setIsDetailOpen(true)}
                 onSelectEntry={(entryId) => {
                   setSelectionId(entryId);

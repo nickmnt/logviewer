@@ -20,7 +20,7 @@
   --border-strong: rgba(214, 226, 242, 0.16);
   --focus-ring: rgba(111, 178, 242, 0.82);
   --row-height: 36px;
-  --log-columns: 4.5rem 13.5rem 4.2rem minmax(9rem, 0.9fr) minmax(30rem, 3.4fr) 4.25rem;
+  --log-columns: 4.5rem 13.5rem 4.2rem minmax(9rem, 0.9fr) minmax(34rem, 4.2fr);
   font-family: Inter, "Avenir Next", "Segoe UI", sans-serif;
   background: var(--terminal-ink);
   color: var(--text-main);
@@ -471,10 +471,6 @@ mark {
   background: var(--gutter-graphite);
 }
 
-.log-head__cell--action {
-  text-align: center;
-}
-
 .log-row {
   border-bottom: 1px solid rgba(214, 226, 242, 0.045);
   background: transparent;
@@ -531,30 +527,6 @@ mark {
 
 .log-row__message {
   min-width: 0;
-  color: var(--text-main);
-}
-
-.log-row__copy {
-  justify-self: center;
-  min-height: 1.45rem;
-  padding: 0 0.45rem;
-  border: 1px solid var(--border-soft);
-  border-radius: 0.22rem;
-  background: transparent;
-  color: var(--text-muted);
-  font-size: 0.68rem;
-  letter-spacing: 0;
-  text-transform: uppercase;
-  transition:
-    border-color 120ms ease,
-    background-color 120ms ease,
-    color 120ms ease;
-}
-
-.log-row__copy:hover,
-.log-row__copy--done {
-  border-color: rgba(63, 139, 210, 0.38);
-  background: rgba(63, 139, 210, 0.16);
   color: var(--text-main);
 }
 
@@ -957,7 +929,7 @@ mark {
 
 @media (max-width: 900px) {
   :root {
-    --log-columns: 4.2rem 12.75rem 4rem minmax(8rem, 0.75fr) minmax(22rem, 2.6fr) 4rem;
+    --log-columns: 4.2rem 12.75rem 4rem minmax(8rem, 0.75fr) minmax(26rem, 3.2fr);
   }
 
   .workbench {
@@ -1006,7 +978,7 @@ mark {
 
 @media (max-width: 720px) {
   :root {
-    --log-columns: 4rem 11.25rem 3.9rem minmax(18rem, 1fr) 4rem;
+    --log-columns: 4rem 11.25rem 3.9rem minmax(22rem, 1.4fr);
   }
 
   .activity-rail {

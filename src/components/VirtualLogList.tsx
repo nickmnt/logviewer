@@ -7,13 +7,11 @@ export const LOG_ROW_HEIGHT = 36;
 const OVERSCAN = 18;
 
 interface VirtualLogListProps {
-  copiedEntryId: number | null;
   entries: LogEntry[];
   query: string;
   selectedIndex: number;
   selectionId: number | null;
   viewportRef: MutableRefObject<HTMLDivElement | null>;
-  onCopyEntry: (entry: LogEntry) => void;
   onOpenDetail: () => void;
   onSelectEntry: (entryId: number) => void;
 }
@@ -38,13 +36,11 @@ function renderHighlightedText(text: string, query: string): ReactNode {
 }
 
 export function VirtualLogList({
-  copiedEntryId,
   entries,
   query,
   selectedIndex,
   selectionId,
   viewportRef,
-  onCopyEntry,
   onOpenDetail,
   onSelectEntry,
 }: VirtualLogListProps) {
@@ -151,7 +147,6 @@ export function VirtualLogList({
         <span className="log-head__cell">Lvl</span>
         <span className="log-head__cell log-head__cell--category">Category</span>
         <span className="log-head__cell">Message</span>
-        <span className="log-head__cell log-head__cell--action">Copy</span>
       </div>
       <div style={{ height: topSpacerHeight }} aria-hidden="true" />
       {visibleEntries.map((entry, rowOffset) => {
@@ -186,17 +181,6 @@ export function VirtualLogList({
             <span className="log-row__message" title={entry.raw}>
               {renderHighlightedText(entry.message, query)}
             </span>
-            <button
-              type="button"
-              className={`log-row__copy${copiedEntryId === entry.id ? " log-row__copy--done" : ""}`}
-              aria-label={`Copy log entry ${absoluteIndex + 1}`}
-              onClick={(event) => {
-                event.stopPropagation();
-                onCopyEntry(entry);
-              }}
-            >
-              {copiedEntryId === entry.id ? "Done" : "Copy"}
-            </button>
           </div>
         );
       })}
