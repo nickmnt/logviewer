@@ -159,6 +159,20 @@ describe("App", () => {
     expect(screen.getByRole("separator", { name: "Resize or hide explorer" })).toBeInTheDocument();
   }, 10000);
 
+  it("restores saved explorer visibility on next start", async () => {
+    const user = userEvent.setup();
+    const firstRender = render(<App />);
+
+    await user.click(screen.getByRole("separator", { name: "Resize or hide explorer" }));
+    expect(localStorage.getItem("logviewer.showSidebar")).toBe("false");
+
+    firstRender.unmount();
+    render(<App />);
+
+    expect(screen.getByRole("separator", { name: "Show explorer" })).toBeInTheDocument();
+    expect(screen.getByLabelText("Log viewer layout").getAttribute("style")).toContain("--explorer-width: 0px");
+  }, 10000);
+
   it("resizes the explorer panel from the divider without collapsing it", () => {
     render(<App />);
 

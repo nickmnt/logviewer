@@ -27,6 +27,8 @@ const MIN_EXPLORER_WIDTH = 220;
 const MAX_EXPLORER_WIDTH = 520;
 const EXPLORER_RESIZE_STEP = 24;
 const PARSE_CHUNK_SIZE = 2000;
+const EXPLORER_OPEN_STORAGE_KEY = "logviewer.showSidebar";
+const EXPLORER_WIDTH_STORAGE_KEY = "logviewer.explorerWidth";
 
 function buildDetailText(entry: LogEntry | null, selectedIndex: number, totalEntries: number): string {
   if (!entry) {
@@ -94,6 +96,29 @@ function yieldToBrowser(): Promise<void> {
   });
 }
 
+function readStoredExplorerOpen(): boolean {
+  try {
+    const storedValue = window.localStorage.getItem(EXPLORER_OPEN_STORAGE_KEY);
+    return storedValue === null ? true : storedValue === "true";
+  } catch {
+    return true;
+  }
+}
+
+function readStoredExplorerWidth(): number {
+  try {
+    const storedValue = window.localStorage.getItem(EXPLORER_WIDTH_STORAGE_KEY);
+    if (!storedValue) {
+      return DEFAULT_EXPLORER_WIDTH;
+    }
+
+    const parsedWidth = Number(storedValue);
+    return Number.isFinite(parsedWidth) ? parsedWidth : DEFAULT_EXPLORER_WIDTH;
+  } catch {
+    return DEFAULT_EXPLORER_WIDTH;
+  }
+}
+
 async function copyTextToClipboard(text: string): Promise<void> {
   if (navigator.clipboard?.writeText) {
     await navigator.clipboard.writeText(text);
@@ -150,8 +175,8 @@ export default function App() {
   const [activeOverlay, setActiveOverlay] = useState<OverlayKind>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
   const [isDetailExpanded, setIsDetailExpanded] = useState(false);
-  const [isExplorerOpen, setIsExplorerOpen] = useState(true);
-  const [explorerWidth, setExplorerWidth] = useState(DEFAULT_EXPLORER_WIDTH);
+  const [isExplorerOpen, setIsExplorerOpen] = useState(readStoredExplorerOpen);
+  const [explorerWidth, setExplorerWidth] = useState(readStoredExplorerWidth);
 
   const deferredQuery = useDeferredValue(query.trim().toLowerCase());
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -602,10 +627,23 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    try {
+      window.localStorage.setItem(EXPLORER_OPEN_STORAGE_KEY, String(isExplorerOpen));
+    } catch {}
+  }, [isExplorerOpen]);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(EXPLORER_WIDTH_STORAGE_KEY, String(explorerWidth));
+    } catch {}
+  }, [explorerWidth]);
+
+  useEffect(() => {
     const onResize = (): void => {
       setExplorerWidth((currentWidth) => clampExplorerWidth(currentWidth));
     };
 
+    onResize();
     window.addEventListener("resize", onResize);
     return () => {
       window.removeEventListener("resize", onResize);
