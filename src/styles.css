@@ -450,7 +450,6 @@ mark {
   border-bottom: 1px solid var(--border-soft);
   background: var(--terminal-ink-2);
   color: var(--text-faint);
-  font-size: 0.68rem;
   font-weight: 700;
   letter-spacing: 0;
   text-transform: uppercase;
@@ -460,6 +459,7 @@ mark {
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
+  font-size: 0.68rem;
 }
 
 .log-head__cell--line,
