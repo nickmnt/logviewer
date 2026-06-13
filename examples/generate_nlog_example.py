@@ -81,6 +81,21 @@ def _format_line(timestamp: datetime, level: str, code: int, category: str, mess
     return f"{timestamp:%Y-%m-%d %H:%M:%S}.{fraction}|{level}|{code:02d}|{category}|{message}"
 
 
+def _build_nested_xml_payload(line_index: int, level: str, category: str, code: int) -> str:
+    tag_names = [f"lvl{depth:02d}" for depth in range(1, 21)]
+    opening = "".join(f'<{tag} depth="{depth}" level="{level}" code="{code:02d}">' for depth, tag in enumerate(tag_names, start=1))
+    closing = "".join(f"</{tag}>" for tag in reversed(tag_names))
+    return f'{opening}<value line="{line_index:04d}" category="{category}">payload-{line_index:04d}</value>{closing}'
+
+
+def _should_embed_xml(line_index: int, level: str, randomizer: random.Random) -> bool:
+    if line_index < len(CATEGORIES):
+        return line_index % 4 == 2
+    if level in {"ERROR", "FATAL"} and line_index % 9 == 0:
+        return True
+    return randomizer.random() < 0.08
+
+
 def build_example_lines(line_count: int) -> list[str]:
     randomizer = random.Random(20260603)
     timestamp = datetime(2026, 6, 3, 9, 0, 0)
@@ -94,10 +109,13 @@ def build_example_lines(line_count: int) -> list[str]:
             f"{BASE_MESSAGES[level][index % len(BASE_MESSAGES[level])]} | "
             f"seeded startup event | request_id=REQ-{index + 1:04d}"
         )
+        if _should_embed_xml(len(lines), level, randomizer):
+            message = f"{message} | xml_payload={_build_nested_xml_payload(len(lines), level, category, code)}"
         lines.append(_format_line(timestamp, level, code, category, message))
         timestamp += timedelta(milliseconds=75)
 
     while len(lines) < line_count:
+        line_index = len(lines)
         level = randomizer.choices(
             population=LEVELS,
             weights=[18, 16, 24, 10, 6, 1],
@@ -127,6 +145,8 @@ def build_example_lines(line_count: int) -> list[str]:
             )
             context = f"{context} {detail}"
         message = f"{template} | {context}"
+        if _should_embed_xml(line_index, level, randomizer):
+            message = f"{message} | xml_payload={_build_nested_xml_payload(line_index, level, category, code)}"
         lines.append(_format_line(timestamp, level, code, category, message))
         timestamp += timedelta(milliseconds=randomizer.randint(15, 220))
 
