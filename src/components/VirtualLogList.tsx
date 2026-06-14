@@ -57,6 +57,7 @@ export function VirtualLogList({
 
   const scrollFrameRef = useRef<number | null>(null);
   const pendingWindowStartRef = useRef(0);
+  const renderedWindowStartRef = useRef(0);
 
   const totalHeight = entries.length * LOG_ROW_HEIGHT;
   const columnStyle = useMemo(() => {
@@ -85,6 +86,14 @@ export function VirtualLogList({
   const visibleEntries = entries.slice(startIndex, endIndex);
   const topSpacerHeight = startIndex * LOG_ROW_HEIGHT;
   const bottomSpacerHeight = Math.max(0, totalHeight - topSpacerHeight - visibleEntries.length * LOG_ROW_HEIGHT);
+
+  const commitWindowStartIndex = (nextWindowStartIndex: number): void => {
+    renderedWindowStartRef.current = nextWindowStartIndex;
+    pendingWindowStartRef.current = nextWindowStartIndex;
+    setWindowStartIndex((currentWindowStartIndex) => {
+      return currentWindowStartIndex === nextWindowStartIndex ? currentWindowStartIndex : nextWindowStartIndex;
+    });
+  };
 
   useEffect(() => {
     return () => {
@@ -141,8 +150,7 @@ export function VirtualLogList({
     }
 
     const nextWindowStartIndex = Math.max(0, Math.floor(viewport.scrollTop / LOG_ROW_HEIGHT) - OVERSCAN);
-    pendingWindowStartRef.current = nextWindowStartIndex;
-    setWindowStartIndex(nextWindowStartIndex);
+    commitWindowStartIndex(nextWindowStartIndex);
   }, [entries, viewportRef]);
 
   function handleWheel(event: ReactWheelEvent<HTMLDivElement>): void {
@@ -163,18 +171,25 @@ export function VirtualLogList({
       style={columnStyle}
       onWheel={handleWheel}
       onScroll={(event) => {
-        pendingWindowStartRef.current = Math.max(0, Math.floor(event.currentTarget.scrollTop / LOG_ROW_HEIGHT) - OVERSCAN);
+        const nextWindowStartIndex = Math.max(0, Math.floor(event.currentTarget.scrollTop / LOG_ROW_HEIGHT) - OVERSCAN);
+        pendingWindowStartRef.current = nextWindowStartIndex;
+        if (Math.abs(nextWindowStartIndex - renderedWindowStartRef.current) > OVERSCAN) {
+          if (scrollFrameRef.current !== null) {
+            window.cancelAnimationFrame(scrollFrameRef.current);
+            scrollFrameRef.current = null;
+          }
+
+          commitWindowStartIndex(nextWindowStartIndex);
+          return;
+        }
+
         if (scrollFrameRef.current !== null) {
           return;
         }
 
         scrollFrameRef.current = window.requestAnimationFrame(() => {
           scrollFrameRef.current = null;
-          setWindowStartIndex((currentWindowStartIndex) => {
-            return currentWindowStartIndex === pendingWindowStartRef.current
-              ? currentWindowStartIndex
-              : pendingWindowStartRef.current;
-          });
+          commitWindowStartIndex(pendingWindowStartRef.current);
         });
       }}
       tabIndex={0}
